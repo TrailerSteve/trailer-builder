@@ -1,0 +1,2764 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Utility Trailer 3D — WebGL (No Libraries)</title>
+  <style>
+    html, body { height: 100%; margin: 0; background:#0b0d10; background: linear-gradient(#bcd8f6, #92a4c2 60%, #6e7b8b); color:#fff }
+    #app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; }
+    header { padding: .6rem .9rem; border-bottom: 1px solid #1b2533; display:flex; gap:.75rem; align-items:center; }
+    .pill { font-size: .85rem; background:#121926; border:1px solid #223048; padding:.25rem .5rem; border-radius:999px; }
+    canvas { width: 100%; height: 100%; display: block; cursor: grab; background:transparent;}
+    canvas:active { cursor: grabbing; }
+    .hud { position: absolute; bottom:.75rem; left:.75rem; background:rgba(0,0,0,.45); backdrop-filter: blur(6px); border:1px solid #223048; border-radius: .6rem; padding:.5rem .6rem; font-size:.85rem; }
+    .btn { user-select:none; padding:.25rem .55rem; border-radius:.5rem; border:1px solid #223048; background:#121926; color:#e6eef8; }
+    .btn:hover { filter: brightness(1.1); }
+    .config-tab.disabled {opacity: .35; pointer-events: none; cursor: not-allowed;}
+    .config-panel-body::-webkit-scrollbar {height: 8px;}
+    .config-panel-body::-webkit-scrollbar-thumb {background: #c4c7d0; border-radius: 4px;}
+    .color-scroll {overflow: hidden; scroll-behavior: smooth; position: relative; height: 220px; padding: .25rem 2.5rem;}
+    .color-strip {display: flex; gap: .75rem; padding:1rem 1.25rem 1.25rem; transition: transform 0.35s ease; transform: translateX(0px);}
+    .scroll-arrow {position: absolute; top: 50%; transform: translateY(-50%); height: 40px; width: 40px; border-radius: 50%; border: none; background: rgba(0,0,0,0.4); color: white; font-size: 22px; cursor: pointer; z-index: 10;}
+    .scroll-arrow.left {left: 5px;}
+    .scroll-arrow.right {right: 5px;}
+    .scroll-arrow:hover {background: rgba(0,0,0,0.7);}
+    .color-option {flex: 0 0 calc((100% - (4 * .75rem)) / 5); max-width: none; opacity: 0; transform: translateX(24px); transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+                   text-align:left; border-radius:.6rem; border:2px solid #ff6a00; padding:.4rem; background:#ffffff; cursor:pointer; display:flex; flex-direction:column; gap:.4rem;}
+    .color-option.from-left {transform: translateX(-24px);}
+    .color-option.from-right {transform: translateX(24px);}
+    .color-option.in-view {opacity: 1; transform: translateX(0);}
+    .axle{display: flex;  gap: .75rem;  padding: 1rem 1.25rem;  height: 100%;  box-sizing: border-box;  align-items: stretch;}
+    .axle .axle-option{width: 260px; height: 200px; flex: 0 0 auto; box-sizing: border-box; text-align: left; border-radius: .6rem; border: 2px solid #ff6a00; padding: .4rem; background: #ffffff; cursor: pointer; display: flex; flex-direction: column; gap: .4rem;}
+    .axle .axle-option img{width: 100%; height: 100%; object-fit: contain; display: block;}
+    .axle .axle-option.is-disabled{opacity: .35; pointer-events: none; cursor: not-allowed;}
+    .option-row {display: flex; gap: 16px; align-items: flex-start;}
+    .option-col {display: flex; gap: 16px; padding: 6px}
+    .option-col label {font-size: 14px; margin-bottom: 4px; font-weight: 500;}
+    .option-col select {padding: 6px 10px; font-size: 14px;}
+    .panel-footer {display: flex; justify-content: space-between; padding: 12px; border-top: 1px solid #d0d4e0; background: #f8f8fb;}
+    .config-panel {display: flex; flex-direction: column;}
+    .config-panel-body {flex: 1; overflow: auto;}
+    .axle-warning {margin-top: 8px; font-size: 1.9rem; color: #b45309; background: #fff7ed; border: 1px solid #fed7aa; padding: 6px 10px; border-radius: 6px;}
+    .features {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
+
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <strong>Utility Trailer 3D</strong>
+      <span class="pill">LMB: orbit</span>
+      <span class="pill">Wheel/Pinch: zoom</span>
+      <span class="pill">R: reset</span>
+      <button id="btnReset" class="btn" title="Reset view">Reset</button>
+      <!-- Buttons for debug -->
+      <button id="btnAxle" class="btn" title="Toggle axles" hidden>Single Axle</button>
+      <!-- button class="btn" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">Toggle Roof Lines</button-->
+      <button id="btnInterior" class="btn" title="Toggle interior view">Interior View</button>
+    </header>
+<main class="main-pane" style="display:flex; flex-direction:column; align-items:center; padding:1rem 0; overflow:auto;">
+  <!-- 3D Viewer -->
+  <div class="viewer-panel" style="position:relative; width:100%; max-width:1200px; aspect-ratio:16/9; overflow:hidden; border-radius:.5rem;">
+    <canvas id="gl" aria-label="3D canvas" role="img"></canvas>
+    <div class="hud" id="hud">FPS: –</div>
+  </div>
+    <!-- Size panel -->
+  <section class="config-panel" style="width:100%; max-width:1200px; margin-top:1rem; background:#f8f8fb; border-radius:.75rem .75rem 0 0; border:1px solid #d0d4e0; border-bottom:none; box-shadow:0 8px 20px rgba(0,0,0,.18); height:270px; min-height:270px; max-height:270px; display:flex; flex-direction:column;">
+    <div class="config-panel-body" data-tab-body="width" data-display="flex" style="position:relative;">
+      <div class="option-row"> 
+        <div class="option-col">
+          <label for="width-options" style="color: black; font-size: 2.5rem;">Pick Width</label>
+          <select id="width-options" name="width" style="color: white; background: black;font-size: 2.5rem;">
+            <option value="72">6' (72")</option>
+            <option value="84">7' (84")</option>
+            <option value="102">8'6" (102")</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="config-panel-body" data-tab-body="length" data-display="flex" style="position:relative; display: none;">
+      <div class="option-row"> 
+        <div class="option-col">
+          <label for = "length-options" style="color: black; font-size: 2.5rem;">Pick Length</label>
+          <select id="length-options" name="length" style="color: white; background: black; font-size: 2.5rem;">
+            <option value="10">10'</option>
+            <option value="12">12'</option>
+            <option value="14">14'</option>
+            <option value="16">16'</option>
+            <option value="18">18'</option>
+            <option value="20">20'</option>
+            <option value="22">22'</option>
+            <option value="24">24'</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="config-panel-body" data-tab-body="size_axle" data-display="flex" style="position:relative; display:none;"> 
+      <div id="axle-form" class="axle-form">
+        <div class="axle">
+          <button id="btnAxle" class="option-card axle-option" data-axle="single">Single Axle<img src="single.JPG" alt="Single Axle" style="width:100%; display:block;"></button>
+          <button id="btnAxle" class="option-card axle-option" data-axle="tandem">Tandem Axle<img src="tandem.JPG" alt="Tandem Axle" style="width:100%; display:block;"></button>
+          <div id="axle-warning" class="axle-warning" hidden>
+            ⚠️ 10' trailers are available in single axle only.
+          </div>
+        </div>
+      </div> 
+    </div>
+    <!-- Color panel -->
+    <div class="config-panel-body" data-tab-body="color" style="position:relative; display:none">
+      <button class="scroll-arrow left" data-scroll="left">&#10094;</button>
+      <div class="color-scroll">
+        <div class="color-strip" id="color-strip">
+          <button class="option-card color-option is-selected" data-color="silver">Silver<img src="Silver.jpg" alt="Silver" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="black">Black<img src="Black.jpg" alt="Black" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="charcoal">Charcoal<img src="Charcoal.jpg" alt="Charcoal" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="white">White<img src="White.jpg" alt="White" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="green">Green<img src="Green.jpg" alt="Green" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="blue">Blue<img src="Blue.jpg" alt="Blue" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="red">Red<img src="Red.jpg" alt="Red" style="width:100%; display:block;"></button>
+          <button class="option-card color-option" data-color="yellow">Yellow<img src="Yellow.jpg" alt="Yellow" style="width:100%; display:block;"></button>
+        </div>
+      </div>
+      <!-- Right Arrow -->
+      <button class="scroll-arrow right" data-scroll="right">&#10095;</button>
+    </div>
+    <!-- Features panel -->
+    <div class="config-panel-body" data-tab-body="features" style="display:none; color: black;">
+      <p>Choose add-on features (we will wire these in next):</p>
+      <div class="features">
+      <label><input type="checkbox" name="feature_one_piece" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">One Piece Aluminum Roof</label>
+      <label><input type="checkbox" name="feature_spare_outside"> Spare Tire Mount(Outside)</label>
+      <label><input type="checkbox" name="feature_spare_inside"> Spare Tire Mount(Inside)</label>
+      <label><input type="checkbox" name="feature_1">Place holder 1</label>
+      <label><input type="checkbox" name="feature_2">Place holder 2</label>
+      <label><input type="checkbox" name="feature_3">Place holder 3</label>
+      <label><input type="checkbox" name="feature_4">Place holder 4</label>
+      <label><input type="checkbox" name="feature_5">Place holder 5</label>
+      <label><input type="checkbox" name="feature_6">Place holder 6</label>
+      <label><input type="checkbox" name="feature_7">Place holder 7</label>
+      <label><input type="checkbox" name="feature_8">Place holder 8</label>
+      <label><input type="checkbox" name="feature_9">Place holder 9</label>
+      <label><input type="checkbox" name="feature_10">Place holder 10</label>
+      <label><input type="checkbox" name="feature_11">Place holder 11</label>
+      <label><input type="checkbox" name="feature_12">Place holder 12</label>
+      <label><input type="checkbox" name="feature_13">Place holder 13</label>
+      </div>
+    </div>
+    <div class="panel-footer">
+      <button id="back" class="btn">Back</button>
+      <button id="restart" class="btn">Restart</button>
+      <button id="next" class="btn">Next</button>
+    </div>
+  </section></div>
+</main>
+  <script>
+  // --- Tiny mat4 helpers ---
+  const M4 = {
+    ident: () => new Float32Array([1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1]),
+    mul: (a,b)=>{const o=new Float32Array(16);for(let c=0;c<4;c++){for(let r=0;r<4;r++){o[c*4+r]=a[0*4+r]*b[c*4+0]+a[1*4+r]*b[c*4+1]+a[2*4+r]*b[c*4+2]+a[3*4+r]*b[c*4+3];}}return o;},
+    translate:(m,[x,y,z])=>{const t=M4.ident();t[12]=x;t[13]=y;t[14]=z;return M4.mul(m,t)},
+    rotateY:(m,a)=>{const c=Math.cos(a),s=Math.sin(a);const r=new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0,  0,0,0,1]);return M4.mul(m,r)},
+    rotateX:(m,a)=>{const c=Math.cos(a),s=Math.sin(a);const r=new Float32Array([1,0,0,0,  0,c,s,0,  0,-s,c,0,  0,0,0,1]);return M4.mul(m,r)},
+    rotateZ:(m,a)=>{const c=Math.cos(a),s=Math.sin(a);const r=new Float32Array([c,s,0,0, -s,c,0,0, 0,0,1,0,  0,0,0,1]);return M4.mul(m,r)},
+    scale:(m,[x,y,z])=>{const s=new Float32Array([x,0,0,0, 0,y,0,0,  0,0,z,0,  0,0,0,1]);return M4.mul(m,s)},
+    perspective:(fovy,aspect,near,far)=>{const f=1/Math.tan(fovy/2),nf=1/(near-far);const o=new Float32Array(16);o[0]=f/aspect;o[5]=f;o[10]=(far+near)*nf;o[11]=-1;o[14]=(2*far*near)*nf;return o;},
+    lookAt:(eye,ctr,up)=>{let [ex,ey,ez]=eye,[cx,cy,cz]=ctr,[ux,uy,uz]=up;let zx=ex-cx,zy=ey-cy,zz=ez-cz;let zl=1/Math.hypot(zx,zy,zz);zx*=zl;zy*=zl;zz*=zl;let xx=uy*zz-uz*zy,xy=uz*zx-ux*zz,xz=ux*zy-uy*zx;let xl=1/Math.hypot(xx,xy,xz);xx*=xl;xy*=xl;xz*=xl;
+    let yx=zy*xz-zz*xy,yy=zz*xx-zx*xz,yz=zx*xy-zy*xx;const o=M4.ident();o[0]=xx;o[4]=xy;o[8]=xz;o[1]=yx;o[5]=yy;o[9]=yz;o[2]=zx;o[6]=zy;o[10]=zz;o[12]=-(xx*ex+xy*ey+xz*ez);o[13]=-(yx*ex+yy*ey+yz*ez);o[14]=-(zx*ex+zy*ey+zz*ez);return o;}
+  };
+
+  // --- WebGL setup ---
+  const canvas = document.getElementById('gl');
+  if (!canvas) {
+    console.error('Canvas #gl not found in the DOM');
+    throw new Error('Canvas not found'); 
+  }
+
+  // Try WebGL2, then WebGL1, then experimental
+  const opts = { antialias: true, alpha: true };
+  let gl = canvas.getContext('webgl2', opts) ||
+           canvas.getContext('webgl', opts) ||
+           canvas.getContext('experimental-webgl', opts);
+
+  // Graceful bail-out (don’t throw)
+  if (!gl) {
+    const hud = document.getElementById('hud');
+    if (hud) hud.textContent = 'WebGL context could not be created (try another browser or enable hardware acceleration).';
+    console.error('WebGL context creation failed');
+    throw new Error('WebGL context creation failed');
+  }
+
+  // Simple lit shader (Lambert + ambient). Materials via uniform color.
+const VERT = `
+  attribute vec3 aPosition; 
+  attribute vec3 aNormal;
+  uniform mat4 uProjection, uView, uModel;
+
+  varying vec3 vN;
+  varying vec3 vWPos;
+
+  void main(){
+    vec4 wpos = uModel * vec4(aPosition,1.0);
+    vWPos = wpos.xyz;
+    vN = normalize(mat3(uModel) * aNormal);
+
+    // NEW: basic planar mapping using world Y/Z
+    gl_Position = uProjection * uView * wpos;
+  }
+`;
+
+const FRAG = `
+  precision highp float;
+
+  uniform vec3 uColor;
+  uniform vec3 uLightDir;
+
+  // hemisphere + specular controls
+  uniform vec3  uSky;
+  uniform vec3  uGround;
+  uniform float uAmbient;
+  uniform float uSpecPower, uSpecStrength;
+  uniform vec3  uCameraPos;
+  uniform float uHemiMix;
+
+  // diamond-plate controls
+  uniform int   uDiamond;
+  uniform float uDScale;
+  uniform float uDLine; 
+
+  // texture controls
+  uniform sampler2D uDiamondTex;
+  uniform int uUseTex; 
+  uniform float uTexScale;
+
+  varying vec3 vN;
+  varying vec3 vWPos;
+
+  void main() {
+    vec3 N = normalize(vN);
+    vec3 V = normalize(uCameraPos - vWPos);
+
+    // start from the base material color
+    vec3 baseColor = uColor;
+
+// if texture is enabled, sample it and use that as base color
+if (uUseTex == 1) {
+  float scale = abs(uTexScale);
+  vec2 uv;
+
+  // SPECIAL CASE: diamond plate (stone guard) always uses a stable mapping
+  // uDiamond == 1 is your "stone guard" / diamond-plate mode.
+  if (uDiamond == 1) {
+    // Use YZ and rotate like your older mapping
+    uv = vWPos.yz * scale;
+    //uv = vec2(uv.y, -uv.x);
+  } else {
+    // Auto mapping for everything else (your current logic)
+    vec3 n = normalize(vN);
+
+    if (abs(n.y) > abs(n.x) && abs(n.y) > abs(n.z)) {
+      uv = vWPos.xz * scale;   
+    } else if (abs(n.x) > abs(n.z)) {
+      uv = vWPos.zy * scale;     
+    } else {
+      uv = vWPos.xy * scale; 
+    }
+
+    if (uTexScale < 0.0) {
+      uv.y = -uv.y;
+    }
+  }
+
+  vec3 tex = texture2D(uDiamondTex, uv).rgb;
+  baseColor = tex;
+}
+
+    // ----- Procedural diamond plate pattern -----
+    if (uDiamond == 1 && uUseTex == 0) {
+      // project into YZ plane 
+      vec2 yz = vec2(vWPos.y, vWPos.z);
+
+      // rotate 45° to turn grid into diamonds
+      float c = 0.70710678;
+      mat2 R = mat2(c, -c, c, c);
+      vec2 p = (R * yz) / max(uDScale, 1e-4);
+
+      // distance to nearest cell edge
+      vec2 g = abs(fract(p) - 0.5);
+      float edge = min(g.x, g.y);
+
+      // narrow bright ridges along the edges
+      float lineMask = smoothstep(0.5 - uDLine, 0.5, 0.5 - edge);
+
+      // boost brightness where ridges are
+      float ridgeBoost = mix(0.9, 1.3, lineMask);
+      baseColor = uColor * ridgeBoost;
+    }
+
+    // hemisphere lighting (sky vs ground tint)
+    float up  = clamp(N.y * 0.5 + 0.5, 0.0, 1.0);
+    float hup = pow(up, uHemiMix);
+    vec3 hemi = mix(uGround, uSky, hup);
+
+    // diffuse from directional light
+    float ndl  = max(dot(N, -uLightDir), 0.0);
+    float diff = ndl;
+
+    // Blinn-Phong specular + Fresnel
+    vec3 H        = normalize(V - uLightDir);
+    float specCore = pow(max(dot(N, H), 0.0), uSpecPower);
+    float ndv = dot(N, V);
+    float specVis = step(0.0, ndv); // 0 when camera is behind the surface
+    float fresnel = pow(1.0 - clamp(ndv, 0.0, 1.0), 5.0);
+    float spec = specCore * (0.6 + 0.4 * fresnel) * uSpecStrength * specVis;
+
+    // lighting combine
+    vec3 lit   = baseColor * (uAmbient + diff * 0.8) * hemi + vec3(spec * 1.2);
+    vec3 gamma = pow(lit, vec3(1.0 / 2.2));
+
+    // simple fog
+    float fogDist = length(uCameraPos - vWPos);
+    float fog     = clamp((fogDist - 20.0) / 80.0, 0.0, 1.0);
+    vec3 fogColor = uSky;
+    gamma = mix(gamma, fogColor, fog);
+
+    gl_FragColor = vec4(gamma, 1.0);
+  }
+`;
+
+  // set up program and uView
+  const program = link(compile(gl.VERTEX_SHADER, VERT), compile(gl.FRAGMENT_SHADER, FRAG));
+  const uView=gl.getUniformLocation(program,'uView');
+
+  // Build ONE shader (vertex or fragment) from source.
+  function compile(type, src){ const s=gl.createShader(type); gl.shaderSource(s,src);
+  gl.compileShader(s); 
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ throw new Error(gl.getShaderInfoLog(s)); 
+  } 
+  return s;
+  }
+
+  // Glue vertex + fragment shaders into a program.
+  function link(vs, fs){ const p=gl.createProgram();
+  gl.attachShader(p,vs); gl.attachShader(p,fs);
+  gl.linkProgram(p); 
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){ throw new Error(gl.getProgramInfoLog(p));
+  }
+  return p; }
+
+  const uModel=gl.getUniformLocation(program,'uModel');
+  const uColor=gl.getUniformLocation(program,'uColor');
+  const uLightDir=gl.getUniformLocation(program,'uLightDir');
+  const uDiamond   = gl.getUniformLocation(program, 'uDiamond');
+  const uDScale    = gl.getUniformLocation(program, 'uDScale');
+  const uDLine     = gl.getUniformLocation(program, 'uDLine');
+  const uDiamondTex = gl.getUniformLocation(program, 'uDiamondTex');
+  const uUseTex     = gl.getUniformLocation(program, 'uUseTex');
+  const uTexScale   = gl.getUniformLocation(program, 'uTexScale');
+
+  gl.useProgram(program);
+  // defaults (off)
+  gl.uniform1i(uDiamond, 0);
+  gl.uniform1f(uDScale, 0.15); // reasonable default diamond size
+  gl.uniform1f(uDLine,  0.10); // ridge thickness (0.03..0.15 looks good)
+
+  gl.uniform1i(uUseTex, 0);
+  gl.uniform1f(uTexScale, 1.0);
+  gl.uniform1i(uDiamondTex, 0);
+  
+  gl.enable(gl.DEPTH_TEST);
+
+// NEW: diamond plate texture
+let diamondTexReady = false;
+let floorTexReady = false;
+let interiorView = false;
+let showRoofLines = true;
+const DEBUG = true;
+const diamondTex = loadTexture("diamond-plate.png");
+const floorTex    = loadTexture("Floor.jpg");
+const wallTex = loadTexture("Wall.jpg");
+
+// UNIVERSAL TEXTURE LOADER
+function loadTexture(url) {
+  const tex = gl.createTexture();
+  const img = new Image();
+  img.onerror = () => console.error("Texture failed to load:", url);
+  img.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      img
+    );
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    console.log(url + " loaded");
+    // Mark floor texture as ready when its image finishes loading
+    if (url.toLowerCase().includes("floor.jpg")) {
+      floorTexReady = true;
+    }
+    if (url.toLowerCase().includes("diamond-plate")){ 
+      diamondTexReady = true;
+    }
+  };
+  img.src = url;
+  return tex;
+}
+
+  let cameraPos = [2.8, 1.6, 4.2];
+  // Tell the shader where my CAMERA is (world space).
+  const uCameraPos = gl.getUniformLocation(program, 'uCameraPos');
+  function updateCameraUniform() {gl.uniform3f(uCameraPos, cameraPos[0], cameraPos[1], cameraPos[2]);}
+  // Sets up camera, clears the screeen, and colors and draws the ground(culling)
+  let INDEX_TYPE = gl.UNSIGNED_SHORT;
+
+  // sets axle mode to single and utility on start up
+  let axleMode = 'single';
+  let bodyMode = 'enclosed';
+
+  let enclosedColor = [0.7, 0.7, 0.7];
+  const COLOR_MAP = {
+    silver:[0.7, 0.7, 0.7],
+    black:[0.0, 0.0, 0.0],
+    charcoal:[0.15, 0.15, 0.15],
+    white:[5.0, 5.0, 5.0],
+    green:[0.0, 1.0, 0.0],
+    blue:[0.0, 0.0, 1.0],
+    red:[1.00, 0.0, 0.0],
+    yellow:[1.0, 1.0, 0.0],
+  };
+  const ROOF_COLOR = [0.85, 0.85, 0.85];
+
+// ---- Length -> Allowed Widths (in inches) ----
+const LENGTH_TO_WIDTHS = {
+  10: [72],                 
+  12: [72, 84],             
+  14: [84, 102],
+  16: [84, 102],
+  18: [84, 102],
+  20: [84, 102],
+  22: [84, 102],
+  24: [84, 102],
+};
+
+const lengthSelect = document.getElementById("length-options");
+const widthSelect  = document.getElementById("width-options");
+
+// Cache the original width <option> list so we can rebuild from it
+const ALL_WIDTH_OPTIONS = Array.from(widthSelect.options).map(o => ({
+  value: o.value,          // "72"
+  text: o.textContent,     // "6' (72")"
+}));
+
+function applyWidthFilterForLength() {
+  const L = Number(lengthSelect.value);
+  const allowed = new Set((LENGTH_TO_WIDTHS[L] || []).map(String)); // store as strings
+
+  // If no rule exists, default to "allow all"
+  const allowAll = allowed.size === 0;
+
+  // Rebuild dropdown
+  widthSelect.innerHTML = "";
+  const list = allowAll
+    ? ALL_WIDTH_OPTIONS
+    : ALL_WIDTH_OPTIONS.filter(o => allowed.has(o.value));
+
+  list.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o.value;
+    opt.textContent = o.text;
+    widthSelect.appendChild(opt);
+  });
+
+  // Ensure a valid selection
+  if (widthSelect.options.length > 0) {
+    widthSelect.value = widthSelect.options[0].value;
+  }
+}
+
+// Run whenever length changes
+lengthSelect.addEventListener("change", applyWidthFilterForLength);
+
+// Run once on load (so the default length filters widths immediately)
+applyWidthFilterForLength();
+
+
+  // Geometry builders for all shapes for the trailers
+  const pos=[], nor=[], idx=[];
+  let roofLineStart = 0;
+  let roofLineCount = 0;
+  let innerRoofLineStart = 0;
+  let innerRoofLineCount = 0;
+  
+  function addRectBeam(A, B, thicknessZ, heightY){
+    const ax=A[0], ay=A[1], az=A[2];
+    const bx=B[0], by=B[1], bz=B[2];
+    // direction along the beam in XZ (allow slight Y too if provided)
+    let dx=bx-ax, dy=by-ay, dz=bz-az;
+    const len=Math.hypot(dx,dy,dz)||1; dx/=len; dy/=len; dz/=len;
+    // world up
+    const ux=0, uy=1, uz=0;
+    // side vector = up x dir
+    let sx=uy*dz-uz*dy, sy=uz*dx-ux*dz, sz=ux*dy-uy*dx;
+    const sl=Math.hypot(sx,sy,sz)||1; sx/=sl; sy/=sl; sz/=sl;
+    const hy=heightY/2, hz=thicknessZ/2;
+    // corner offsets
+    const up = [ux*hy, uy*hy, uz*hy];
+    const side = [sx*hz, sy*hz, sz*hz];
+    // build 8 corners at A and B
+    function add(v,w){ return [v[0]+w[0], v[1]+w[1], v[2]+w[2]]; }
+    function sub(v,w){ return [v[0]-w[0], v[1]-w[1], v[2]-w[2]]; }
+    const A0 = add(A, add( up,  side));
+    const A1 = add(A, sub( up,  side));
+    const A2 = add(A, sub([-up[0],-up[1],-up[2]], side));
+    const A3 = add(A, add([-up[0],-up[1],-up[2]], side));
+    const B0 = add(B, add( up,  side));
+    const B1 = add(B, sub( up,  side));
+    const B2 = add(B, sub([-up[0],-up[1],-up[2]], side));
+    const B3 = add(B, add([-up[0],-up[1],-up[2]], side));
+    // faces: connect quads (approx normals)
+    pushQuad(A0,A1,B1,B0, [ sx, sy, sz]);      // +side
+    pushQuad(A1,A2,B2,B1, [ 0, -1, 0]);      //  bottom
+    pushQuad(A2,A3,B3,B2, [-sx,-sy,-sz]);      // -side
+    pushQuad(A3,A0,B0,B3, [ 0, 1, 0]);      // top
+    pushQuad(A0,A3,A2,A1, [ -dx, -dy, -dz]);         // -dir (inside)
+    pushQuad(B1,B2,B3,B0, [ dx, dy, dz]);         // +dir (outside) 
+  }
+
+  // defines one triangle that higher-level functions (like pushQuad, addRectBeam, addBox) build on
+  function pushTri(p0,p1,p2, n){
+    const s = pos.length/3;
+    pos.push(...p0, ...p1, ...p2);
+    nor.push(...n, ...n, ...n);
+    idx.push(s, s+1, s+2);
+  }
+
+  // creates one rectangular surface (two triangles) and feeds its data into pos, nor, and idx arrays
+  function pushQuad(p0,p1,p2,p3, n){
+    const s=pos.length/3; pos.push(...p0,...p1,...p2,...p3); nor.push(...n,...n,...n,...n); idx.push(s,s+1,s+2, s,s+2,s+3);
+  }
+
+  // building box shape for use later
+  function addBox(cx,cy,cz, sx,sy,sz){ // centered
+    const x=sx/2,y=sy/2,z=sz/2; const C=[cx,cy,cz];
+    const V=
+    [
+      [-x,-y, z],[ x,-y, z],[ x, y, z],[-x, y, z], // F
+      [-x,-y,-z],[-x, y,-z],[ x, y,-z],[ x,-y,-z], // B
+      [-x,-y,-z],[-x,-y, z],[-x, y, z],[-x, y,-z], // L
+      [ x,-y,-z],[ x, y,-z],[ x, y, z],[ x,-y, z], // R
+      [-x, y,-z],[-x, y, z],[ x, y, z],[ x, y,-z], // T
+      [-x,-y,-z],[ x,-y,-z],[ x,-y, z],[-x,-y, z]  // Bo
+    ].map(v=>[v[0]+C[0],v[1]+C[1],v[2]+C[2]]);
+    const N=[[0,0,1],[0,0,1], [0,0,-1],[0,0,-1], [-1,0,0],[-1,0,0], [1,0,0],[1,0,0], [0,1,0],[0,1,0], [0,-1,0],[0,-1,0]];
+    for(let f=0; f<6; f++){
+      const i=f*4; pushQuad(V[i],V[i+1],V[i+2],V[i+3], N[f*2]);
+    }
+  }
+
+  //builds an open cylinder (no end caps) for later use
+  function addCylinder(cx,cy,cz, r, h, axis='z', seg=24){
+    // open cylinder (no caps). axis: 'x'|'y'|'z'
+    const start = pos.length/3; const aStep=2*Math.PI/seg; const half=h/2;
+    for(let i=0;i<=seg;i++){
+      const a=i*aStep; const c=Math.cos(a), s=Math.sin(a);
+      let x=0,y=0,z=0, nx=0,ny=0,nz=0;
+      if(axis==='z'){ x=r*c; y=r*s; z=-half; nx=c; ny=s; nz=0; pos.push(cx+x,cy+y,cz+z, cx+x,cy+y,cz+half); nor.push(nx,ny,nz, nx,ny,nz); }
+      if(axis==='x'){ y=r*c; z=r*s; x=-half; nx=0; ny=c; nz=s; pos.push(cx+x,cy+y,cz+z, cx+half,cy+y,cz+z); nor.push(nx,ny,nz, nx,ny,nz); }
+      if(axis==='y'){ x=r*c; z=r*s; y=-half; nx=c; ny=0; nz=s; pos.push(cx+x,cy+y,cz+z, cx+x,cy+half,cz+z); nor.push(nx,ny,nz, nx,ny,nz); }
+    }
+    for(let i=0;i<seg;i++){ const s0=start+i*2; idx.push(s0,s0+1,s0+3, s0,s0+3,s0+2); }
+  }
+
+  // builds a disc for end cap on cylinder
+  function addDisc(cx,cy,cz, r, axis='z', seg=32, flip=false){
+    const cIndex = pos.length/3; pos.push(cx,cy,cz); nor.push(...(axis==='z'?[0,0,flip?-1:1]:axis==='x'?[flip?-1:1,0,0]:[0,flip?-1:1,0]));
+    for(let i=0;i<=seg;i++){
+      const a=2*Math.PI*i/seg; const c=Math.cos(a), s=Math.sin(a);
+      if(axis==='z'){ pos.push(cx+r*c, cy+r*s, cz); nor.push(0,0,flip?-1:1); }
+      if(axis==='x'){ pos.push(cx, cy+r*c, cz+r*s); nor.push(flip?-1:1,0,0); }
+      if(axis==='y'){ pos.push(cx+r*c, cy, cz+r*s); nor.push(0,flip?-1:1,0); }
+    }
+    for(let i=0;i<seg;i++){ idx.push(cIndex, cIndex+1+i, cIndex+2+i); }
+  }
+
+  // Annular disc (flat ring) — great for tire sidewalls
+  function addAnnulus(cx,cy,cz, rInner, rOuter, axis='z', seg=96, flip=false){
+    const base = pos.length/3;
+    // push two concentric rings
+    for (let i=0;i<=seg;i++){
+      const a = 2*Math.PI*i/seg, c=Math.cos(a), s=Math.sin(a);
+      if (axis==='z'){ 
+        pos.push(cx+rInner*c, cy+rInner*s, cz); nor.push(0,0,flip?-1:1);
+        pos.push(cx+rOuter*c, cy+rOuter*s, cz); nor.push(0,0,flip?-1:1);
+      } else if (axis==='x'){
+        pos.push(cx, cy+rInner*c, cz+rInner*s); nor.push(flip?-1:1,0,0);
+        pos.push(cx, cy+rOuter*c, cz+rOuter*s); nor.push(flip?-1:1,0,0);
+      } else { // 'y'
+        pos.push(cx+rInner*c, cy, cz+rInner*s); nor.push(0,flip?-1:1,0);
+        pos.push(cx+rOuter*c, cy, cz+rOuter*s); nor.push(0,flip?-1:1,0);
+      }
+    }
+    // connect as quads between inner/outer rings
+    for (let i=0;i<seg;i++){
+      const a = base + i*2;
+      if (!flip) idx.push(a, a+2, a+1,  a+1, a+2, a+3);
+      else       idx.push(a, a+1, a+2,  a+1, a+3, a+2);
+    }
+  }
+ 
+
+  // Half-disc helper (180°) — builds a semicircular fan for end caps
+  function addHalfDisc(cx,cy,cz, r, axis='y', seg=32, flip=false){
+    const cIndex = pos.length/3; // center vertex index
+    // push center vertex + normal
+    if(axis==='z') nor.push(0,0,flip?-1:1);
+    else if(axis==='x') nor.push(flip?-1:1,0,0);
+    else nor.push(0,flip?-1:1,0);
+    pos.push(cx,cy,cz);
+    // perimeter along 0..π
+    for(let i=0;i<=seg;i++){
+      const a=Math.PI*i/seg; const c=Math.cos(a), s=Math.sin(a);
+      if(axis==='z'){ pos.push(cx+r*c, cy+r*s, cz); nor.push(0,0,flip?-1:1); }
+      else if(axis==='x'){ pos.push(cx, cy+r*c, cz+r*s); nor.push(flip?-1:1,0,0); }
+      else { pos.push(cx+r*c, cy, cz+r*s); nor.push(0,flip?-1:1,0); }
+    }
+    for(let i=0;i<seg;i++){ idx.push(cIndex, cIndex+1+i, cIndex+2+i); }
+  }
+
+  // Cosine ease (smoothstep-ish)
+  function ease(t){ return 0.5 - 0.5*Math.cos(Math.PI*t); }
+
+  // Build a rounded, ribbed tire around Z axis by stacking rings along width
+  // radii[] is an array of [z, radius] pairs from -w/2..+w/2
+  function addTireZ(cx,cy,cz, radii, seg=96, grooveCount=18, grooveDepth=0.004){
+    const base = pos.length / 3;        // <— offset for global vertex arrays
+    for (let j=0;j<radii.length;j++){
+      const z = cz + radii[j][0];
+      const r0 = radii[j][1];
+      for (let i=0;i<=seg;i++){
+        const a = 2*Math.PI*i/seg, c=Math.cos(a), s=Math.sin(a);
+        const step = Math.max(1, Math.floor(seg/grooveCount));
+        const edgeRing = (j === 0 || j === radii.length-1);
+        const g = edgeRing ? 0.0 : ((i % step) === 0 ? grooveDepth : 0.0);
+        const r = r0 - g;
+        pos.push(cx + r*c, cy + r*s, z);
+        // approximate normal (radial)
+        nor.push(c, s, 0);
+      }
+    }
+    const ringStride = seg+1;
+    for (let j=0;j<radii.length-1;j++){
+      for (let i=0;i<seg;i++){
+        const a=j*ringStride+i, b=a+1, c=a+ringStride, d=c+1;
+        idx.push(base+a, base+c, base+b,  base+b, base+c, base+d);
+      }
+    }
+  }
+
+  // Simple rim set: outer dish + inner hub + front/back caps
+  function addRimZ(cx,cy,cz, rOuter, width, rHub, seg=96, outwardPositiveZ=true){
+    const half = width/2;
+    const out   = outwardPositiveZ ? 1 : -1;
+
+    // hub tube
+    addCylinder(cx, cy, cz, rHub, width*0.8, 'z', seg);
+
+    // flat front/back caps only
+    const zOuterFace = cz + out*half;
+    const zInnerFace = cz - out*half;
+    // outer face: normal should point outward (flip when outward is -Z)
+    addDisc(cx, cy, zOuterFace, rOuter*0.9, 'z', seg, !outwardPositiveZ);
+    // inner face: normal should point inward (opposite of outward)
+    addDisc(cx, cy, zInnerFace, rOuter*0.9, 'z', seg, outwardPositiveZ);
+  }
+
+  // Variant: same arched plane but with explicit center X (for tandem fender)
+  function addCurvedPlaneOverTireAt(centerX, z, radius, width, yOffset, seg=96){
+    const innerZ = z - width/2, outerZ = z + width/2;
+    for (let i = 0; i < seg; i++){
+      const t0 = i/seg, t1 = (i+1)/seg;
+      const a0 = Math.PI * t0, a1 = Math.PI * t1; // 0..π
+      const x0 = centerX + Math.cos(a0) * radius;
+      const y0 = Math.sin(a0) * radius + yOffset;
+      const x1 = centerX + Math.cos(a1) * radius;
+      const y1 = Math.sin(a1) * radius + yOffset;
+      const q0 = [x0, y0 - 0.05, innerZ];
+      const q1 = [x0, y0 - 0.05, outerZ];
+      const q2 = [x1, y1 - 0.05, outerZ];
+      const q3 = [x1, y1 - 0.05, innerZ];
+      const ux=q1[0]-q0[0], uy=q1[1]-q0[1], uz=q1[2]-q0[2];
+      const vx=q3[0]-q0[0], vy=q3[1]-q0[1], vz=q3[2]-q0[2];
+      let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+      pushQuad(q1,q0,q3,q2,[nx,ny,nz]);
+    }
+  }
+
+  // Half-arch variant used to make tandem fender from two single halves
+  function addCurvedHalfPlane(centerX, z, radius, width, yOffset, half, seg=96){
+    const innerZ = z - width/2, outerZ = z + width/2;
+    const aStart = (half === 'rear') ? 0.0 : Math.PI/2;   // 'rear' = positive X side; 'front' = negative X side
+    const aEnd   = (half === 'rear') ? Math.PI/2 : Math.PI;
+    for (let i = 0; i < seg; i++){
+      const t0 = i/seg, t1 = (i+1)/seg;
+      const a0 = aStart + (aEnd - aStart) * t0;
+      const a1 = aStart + (aEnd - aStart) * t1;
+      const x0 = centerX + Math.cos(a0) * radius;
+      const y0 = Math.sin(a0) * radius + yOffset;
+      const x1 = centerX + Math.cos(a1) * radius;
+      const y1 = Math.sin(a1) * radius + yOffset;
+      const q0 = [x0, y0 - 0.05, innerZ];
+      const q1 = [x0, y0 - 0.05, outerZ];
+      const q2 = [x1, y1 - 0.05, outerZ];
+      const q3 = [x1, y1 - 0.05, innerZ];
+      const ux=q1[0]-q0[0], uy=q1[1]-q0[1], uz=q1[2]-q0[2];
+      const vx=q3[0]-q0[0], vy=q3[1]-q0[1], vz=q3[2]-q0[2];
+      let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+      pushQuad(q0,q1,q2,q3,[nx,ny,nz]);
+    }
+  }
+
+  // Setup for the tandem axle, cruve on both sides and flat on top
+  function addTandemTwoFlats(axleXFront, axleXRear, wheelZ, yTop, opts = {}){
+    const overhangZ   = opts.overhangZ   ?? 0.02;
+    const seg         = Math.max(24, (opts.seg ?? 144) | 0);
+    let tireWidthVal = opts.tireWidth   ?? (typeof window!=='undefined' && window.tireWidth   !== undefined ? window.tireWidth   : 0.21);
+    const tireRadius  = opts.tireRadius  ?? (typeof window!=='undefined' && window.tireTreadR !== undefined ? window.tireTreadR : 0.30);
+    // separate front/rear pads
+    const padFrontX   = (opts.padFrontX ?? opts.padX ?? 0.12);
+    const padRearX    = (opts.padRearX  ?? opts.padX ?? 0.12);
+
+    // Flat section extents in X
+    const xFlat0 = Math.min(axleXFront, axleXRear) - padFrontX;  // start of flat (near front axle)
+    const xFlat1 = Math.max(axleXFront, axleXRear) + padRearX;   // end of flat (near rear axle)
+
+    // FRONT curl length and drop
+    const lipLenFront = opts.lipLenFront ?? opts.lipLen ?? (tireRadius * 0.9);
+    let   lipDropFront = opts.lipDropFront ?? opts.lipDrop ?? (tireRadius * 0.05);
+    const cxLipStart = xFlat0 - lipLenFront;
+
+    // REAR curl length and drop (new)
+    const lipLenBack  = opts.lipLenBack  ?? lipLenFront;
+    let   lipDropBack = opts.lipDropBack ?? lipDropFront;
+    const cxLipEnd    = xFlat1 + lipLenBack;
+
+    // Quarter-arch vertical anchor (arch apex hits yTop at xFlat0)
+    const yOffset = yTop - tireRadius;
+    
+    // Pin Fender End to the Deck
+    if (opts.targetBottomY !== undefined) {
+      lipDropFront = Math.max(0, (yTop - tireRadius) - opts.targetBottomY);
+    }
+    if (opts.targetBottomYBack !== undefined) {
+      lipDropBack = Math.max(0, (yTop - tireRadius) - opts.targetBottomYBack);
+    }
+
+    // Height profile along X
+    function yAt(x){
+      if (x < xFlat0){
+        const t = Math.max(0, Math.min(1, (x - cxLipStart) / (xFlat0 - cxLipStart))); // 0..1 (front tip→flat)
+        const a = (Math.PI * 0.5) * t;
+        return Math.sin(a) * tireRadius + yOffset - lipDropFront * (1.0 - t);
+      }
+      if (x > xFlat1){
+        const t = Math.max(0, Math.min(1, (cxLipEnd - x) / (cxLipEnd - xFlat1)));      // 1..0 (flat→rear tip)
+        const a = (Math.PI * 0.5) * t;
+        return Math.sin(a) * tireRadius + yOffset - lipDropBack * (1.0 - t);
+     }
+    return yTop;
+  }
+
+    // Helper to emit ONE side (left OR right row), centered at wheelZ
+    function addSide(wheelZ){
+      const halfSpanZ = (tireWidthVal / 2) + overhangZ;
+      const z0 = wheelZ - halfSpanZ;
+      const z1 = wheelZ + halfSpanZ;
+
+     // Sweep from front tip → rear tip (covers both curls + flat)
+      for (let i = 0; i < seg; i++){
+        const t0 = i/seg, t1 = (i+1)/seg;
+        const x0 = cxLipStart + (cxLipEnd - cxLipStart) * t0;
+        const x1 = cxLipStart + (cxLipEnd - cxLipStart) * t1;
+        const y0 = yAt(x0),     y1 = yAt(x1);
+        const q0 = [x0, y0, z0];
+        const q1 = [x1, y1, z0];
+        const q2 = [x1, y1, z1];
+        const q3 = [x0, y0, z1];
+        const ux=q1[0]-q0[0], uy=q1[1]-q0[1], uz=q1[2]-q0[2];
+        const vx=q3[0]-q0[0], vy=q3[1]-q0[1], vz=q3[2]-q0[2];
+        let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+        const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+        pushQuad(q0,q1,q2,q3,[nx,ny,nz]);
+      }
+    }
+
+  // Emit LEFT and RIGHT rows (two separate pieces)
+  addSide(wheelZ);
+ {
+      // A very thin slab in Z so it renders as a flat plate
+      const plateThickness = opts.plateThickness ?? 0.012;
+
+      // Put the plate "behind the tire" toward the deck (toward Z=0)
+      // For the right side (positive Z), move inward (negative); for the left (negative Z), move inward (positive).
+      const inwardSign = (wheelZ > 0) ? -1 : 1;
+
+      // Center the plate just inside the tire's inner sidewall, with a hair of clearance
+      const zPlateCenter = wheelZ + inwardSign * (tireWidthVal / 2 + 0.010);
+      const zA = zPlateCenter - plateThickness * 0.5;
+      const zB = zPlateCenter + plateThickness * 0.5;
+
+      // Bottom anchor: use the same deck bottom you passed in (so it truly reaches the deck)
+      const bottomY = (opts.targetBottomY !== undefined) ? opts.targetBottomY : (yTop - tireRadius);
+ 
+      // Sweep along X using the same front-tip → rear-tip range as the fender skin
+      for (let i = 0; i < seg; i++) {
+        const t0 = i / seg, t1 = (i + 1) / seg;
+        const x0 = cxLipStart + (cxLipEnd - cxLipStart) * t0;
+        const x1 = cxLipStart + (cxLipEnd - cxLipStart) * t1;
+
+        const yTop0 = yAt(x0);
+        const yTop1 = yAt(x1);
+
+        // Two faces (front/back) so it's visible from both sides
+        // Face at zA (normal ~ -Z for right side, +Z for left side)
+        pushQuad(
+          [x0, bottomY, zA],
+          [x1, bottomY, zA],
+          [x1, yTop1,   zA],
+          [x0, yTop0,   zA],
+          [0, 0, (wheelZ > 0) ? -1 : 1]
+        );
+
+        // Face at zB (opposite normal)
+        pushQuad(
+          [x0, bottomY, zB],
+          [x0, yTop0,   zB],
+          [x1, yTop1,   zB],
+          [x1, bottomY, zB],
+          [0, 0, (wheelZ > 0) ?  1 : -1]
+        );
+      }
+    }
+function addFullBodyTrim() {
+  // use the same trim thickness you already use
+  const W = trimW;
+  const D = trimD;
+
+  // TOP TRIM (wraps entire top + V-nose)
+  // Back wall top (left → right)
+  addRectBeam(
+    [bx1 - D, by1, leftZ],
+    [bx1 - D, by1, rightZ],
+    W, W*2
+  );
+
+  // Right wall top (back → front)
+  addRectBeam(
+    [bx1 - D, by1, rightZ],
+    [bx0 - D, by1, rightZ],
+    W, W*2
+  );
+
+  // V-nose right top (front → apex)
+  addRectBeam(
+    [bx0 - D, by1, rightZ],
+    [noseApexX - D, by1, 0],
+    W, W
+  );
+
+  // V-nose left top (apex → front)
+  addRectBeam(
+    [noseApexX - D, by1, 0],
+    [bx0 - D, by1, leftZ],
+    W, W
+  );
+
+  // Left wall top (front → back)
+  addRectBeam(
+    [bx0 - D, by1, leftZ],
+    [bx1 - D, by1, leftZ],
+    W, W*2
+  );
+
+  // Back wall bottom (left → right)
+  addRectBeam(
+    [bx1 - D, by0, leftZ],
+    [bx1 - D, by0, rightZ],
+    W, W*2
+  );
+
+  // Right wall bottom (back → front)
+  addRectBeam(
+    [bx1 - D, by0, rightZ],
+    [bx0 - D, by0, rightZ],
+    W, W*2
+  );
+
+  // Left wall bottom (front → back)
+  addRectBeam(
+    [bx0 - D, by0, leftZ],
+    [bx1 - D, by0, leftZ],
+    W, W*2
+  );
+
+  // VERTICAL CORNERS (all except V-nose front)
+  // Rear-left corner
+  addRectBeam(
+    [bx1 - D, cubeCenterY, leftZ - W],
+    [bx1 - D, cubeCenterY, leftZ + W],
+    W*2, cubeH
+  );
+
+  // Rear-right corner
+  addRectBeam(
+    [bx1 - D, cubeCenterY, rightZ - W],
+    [bx1 - D, cubeCenterY, rightZ + W],
+    W*2, cubeH
+  );
+
+  // Front-left (side) corner (NOT V-nose edge)
+  addRectBeam(
+    [bx0 - D, cubeCenterY, leftZ - W],
+    [bx0 - D, cubeCenterY, leftZ + W],
+    W*2, cubeH
+  );
+
+  // Front-right (side) corner (NOT V-nose edge)
+  addRectBeam(
+    [bx0 - D, cubeCenterY, rightZ - W],
+    [bx0 - D, cubeCenterY, rightZ + W],
+    W*2, cubeH
+  );
+}
+
+  }
+  // --- Build trailer ---
+  // proportions tuned to match the side-photo reference
+  const deckL=3.5, deckW=2.1, deckT=0.06; // deck plate
+  // Build deck as 6 planks side by side
+  const deckIndexStart = idx.length;
+  const plankCount = 6;
+  const plankWidth = deckW / plankCount;
+  let sideBarStart=0, sideBarCount=0;
+  let sideTipStart=0, sideTipCount=0;
+
+  let rearBarStart=0, rearBarCount=0;
+  let rearTipStart=0, rearTipCount=0;
+  for (let i = 0; i < plankCount; i++) {
+    const zPos = -deckW/2 + plankWidth/2 + i*plankWidth;
+    addBox(0, 0, zPos, deckL, deckT, plankWidth * 0.94); 
+  }
+  const deckIndexCount = idx.length - deckIndexStart;
+  // Add thin dark seam strips between planks (for top-down visibility)
+  const seamIndexStart = idx.length;
+  for (let i = 1; i < plankCount; i++) {
+    const seamZ = -deckW/2 + i*plankWidth;
+    // very thin, slightly above deck to avoid Z-fighting
+    addBox(0, deckT*0.005, seamZ, deckL, deckT*1.05, plankWidth*0.02);
+  }
+  const seamIndexCount = idx.length - seamIndexStart;
+
+  // --- Gray cube over the deck (utility payload placeholder) ---
+  const cubeStart = idx.length;
+  const cubeY = deckT/2 + 0.30; // a bit above deck surface
+  addBox(0.18, cubeY+.5, 0, deckL*0.9, 1.75, deckW*1.01);
+  const cubeCount = idx.length - cubeStart;
+  // --- V-nose panels (match cube height; meet cube's front edges) ---
+  const noseStart = idx.length;
+  const cubeCenterX = 0.18;
+  const cubeCenterY = cubeY + 0.5;     // same center Y as the cube
+  const cubeLen     = deckL * 0.9;
+  const cubeH       = 1.75;
+  const cubeW       = deckW * 1.01;
+
+  const bx0 = cubeCenterX - cubeLen/2;   // front wall x
+  const bx1 = cubeCenterX + cubeLen/2;   // back wall x
+
+  const by0 = cubeCenterY - cubeH/2;     // bottom y
+  const by1 = cubeCenterY + cubeH/2;     // top y
+
+  const leftZ  = -cubeW/2;
+  const rightZ =  cubeW/2;
+
+  // Front face X of the cube and a forward apex point
+  const frontX = cubeCenterX - cubeLen/2;
+  const noseApexX = frontX - 0.7;      // how far the nose sticks out (tweak as you like)
+  const t = 0.01;                      // panel thickness
+
+  // Left panel: from left-front cube edge to apex on centerline
+  addRectBeam([frontX, cubeCenterY, -cubeW/2], [noseApexX, cubeCenterY, 0], t, cubeH);
+  // Right panel: from right-front cube edge to apex on centerline
+  addRectBeam([frontX, cubeCenterY,  cubeW/2], [noseApexX, cubeCenterY, 0], t, cubeH);
+
+  const noseCount = idx.length - noseStart;
+
+  function normalizeVec3(v){
+    const l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [ v[0]/l, v[1]/l, v[2]/l ];
+  }
+
+const rightWallStart = idx.length;
+const zDoorWall = cubeCenterX + cubeW/-1.74;
+  pushQuad(
+        [bx0, by0, zDoorWall - .01],
+        [bx1, by0, zDoorWall - .01],
+        [bx1, by1, zDoorWall - .01],
+        [bx0, by1, zDoorWall - .01],
+        [0, 1, 1]
+   );
+const rightWallCount = idx.length - rightWallStart;
+
+const rightWallOutterStart = idx.length;
+const zDoorOutterWall = cubeCenterX + cubeW/-1.72;
+  pushQuad(
+        [bx0, by0, zDoorOutterWall],
+        [bx1, by0, zDoorOutterWall],
+        [bx1, by1, zDoorOutterWall],
+        [bx0, by1, zDoorOutterWall],
+        [0, -1, 0]
+   );
+const rightWallOutterCount = idx.length - rightWallOutterStart;
+
+const vnoseWallStart = idx.length;
+pushQuad(
+        [frontX, by0, -cubeW/2 + .02],
+	[noseApexX, by0, cubeCenterY - .818],
+	[noseApexX, by1, cubeCenterY - .818],
+	[frontX, by1, -cubeW/2 + .02],
+	[0, 0, -1]
+);
+
+pushQuad(
+        [frontX, by0, cubeW/2 - .02],
+	[noseApexX, by0, -cubeCenterY + .818],
+	[noseApexX, by1, -cubeCenterY + .818],
+	[frontX, by1, cubeW/2 - .02],
+	[0, 1, -1]
+);
+const vnoseWallCount =idx.length - vnoseWallStart;
+
+const roofStart = idx.length;
+const roofRaise = 0.001;
+const roofY = by1 + roofRaise;
+
+pushQuad(
+    [bx1, roofY, leftZ],
+    [bx1, roofY, rightZ],
+    [bx0, roofY, rightZ],
+    [bx0, roofY, leftZ],
+    [0, 1, 0]  // upward normal
+);
+const roofCount = idx.length - roofStart;
+
+const roofInnerStart = idx.length;
+const roofYIn = by1 - roofRaise;
+pushQuad(
+  [bx1, roofYIn, leftZ],
+  [bx0, roofYIn, leftZ],
+  [bx0, roofYIn, rightZ],
+  [bx1, roofYIn, rightZ],
+  [0, -1, 0]   // down
+);
+const roofInnerCount = idx.length - roofInnerStart;
+
+const noseRoofStart = idx.length;
+const noseRoofY = roofY;
+pushQuad(
+    [frontX, noseRoofY, -cubeW/2],
+    [noseApexX, noseRoofY, 0],
+    [frontX, noseRoofY,  cubeW/2],
+    [bx0, noseRoofY, leftZ],
+    [0, 1, 0]
+);
+const noseRoofCount = idx.length - noseRoofStart;
+
+const noseRoofInnerStart = idx.length;
+const noseRoofYIn = by1 - 0.0002;
+pushQuad(
+    [bx0, noseRoofYIn, leftZ],
+    [frontX, noseRoofYIn, -cubeW/2],
+    [noseApexX, noseRoofYIn, 0],
+    [frontX, noseRoofYIn, cubeW/2],
+    [0, -1, 0]
+);
+const noseRoofInnerCount = idx.length - noseRoofInnerStart;
+
+  // --- Stone Guard (lower band on V-nose faces) ---
+  let stoneGuardStart = 0, stoneGuardCount = 0;
+  stoneGuardStart = idx.length;
+
+  // height of the band (about 25–30% of the body height, clamped)
+  const guardH = Math.min(cubeH * 0.3, 0.55);
+
+  // center Y of the band = a little above the bottom of the box
+  const noseYBot      = cubeCenterY - cubeH/2;
+  const guardCenterY  = noseYBot + guardH/2;
+  const noseYTop      = cubeCenterY + cubeH/2;
+
+  const stripBottomY = guardCenterY + guardH - .5;     // top of bottom band
+  const stripTopY    = noseYTop + .003;                        // up to roof line
+  const stripW       = 0.4;                            // strip thickness along the nose
+
+  // small forward offset so stone guard sits just in front of the nose panels
+  const guardOffset = -0.008;
+
+  // --- Lower stone-guard band on both V-nose faces ---
+  addRectBeam(
+    [frontX + guardOffset, guardCenterY, -cubeW/2],
+    [noseApexX + guardOffset, guardCenterY, 0],
+    t,
+    guardH
+  );
+  addRectBeam(
+    [frontX + guardOffset, guardCenterY,  cubeW/2],
+    [noseApexX + guardOffset, guardCenterY, 0],
+    t,
+    guardH
+  );
+
+  // Total stone-guard geometry (bottom band + both vertical strips)
+  stoneGuardCount = idx.length - stoneGuardStart;
+
+  // along the nose from flat front wall (0) to apex (1)
+  const stripCenterU = .91;   // move strip toward / away from the apex
+  const stripWidthU  = 0.18;   // how wide the strip is along the nose direction
+
+  function noseStripPoint(isLeft, u, y) {
+    // interpolate along the nose edge in X
+    const x = frontX + (noseApexX - frontX) * u;
+
+    // interpolate Z along that nose face
+    const zEdge = isLeft ? -cubeW * 0.5 : cubeW * 0.5;
+    const z = zEdge * (1.0 - u);
+
+    // guardOffset keeps it just in front of the nose skin
+    return [x + guardOffset, y, z];
+  }
+
+function addNoseStrip(isLeft) {
+  const halfU = stripWidthU * 0.5;
+  const u0 = stripCenterU - halfU;   // near wall
+  const u1 = stripCenterU + halfU;   // toward apex
+
+  // bottom and top points on the V-nose panel
+  const p0 = noseStripPoint(isLeft, u0, stripBottomY); // bottom inner
+  const p1 = noseStripPoint(isLeft, u1, stripBottomY); // bottom outer
+  const p2 = noseStripPoint(isLeft, u1, stripTopY);    // top outer
+  const p3 = noseStripPoint(isLeft, u0, stripTopY);    // top inner
+
+  // Now compute correct panel-aligned normal
+  const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2];
+  const vx = p3[0] - p0[0], vy = p3[1] - p0[1], vz = p3[2] - p0[2];
+  let nx = uy * vz - uz * vy;
+  let ny = uz * vx - ux * vz;
+  let nz = ux * vy - uy * vx;
+  const nl = Math.hypot(nx, ny, nz) || 1;
+  nx /= nl; ny /= nl; nz /= nl;
+
+  // Emit the quad exactly on the panel plane
+  pushQuad(p0, p1, p2, p3, [nx, ny, nz]);
+}
+
+  // build one strip per face
+  addNoseStrip(true);   // left V-nose panel
+  addNoseStrip(false);  // right V-nose panel
+
+  // Total stone-guard geometry (bottom band + center strip)
+  stoneGuardCount = idx.length - stoneGuardStart;
+
+  // V-nose top cap
+  const noseFillStart = idx.length;
+  pushTri(
+    [frontX,    noseYTop, -cubeW/2],  // left box top-front corner
+    [noseApexX, noseYTop,  0],        // apex top
+    [frontX,    noseYTop,  cubeW/2],  // right box top-front corner
+    [0, 1, 0]                          // upward normal
+  );
+  // V-nose bottom cap
+  const noseFillBottomStart = idx.length;
+  pushTri(
+    [frontX,    noseYBot, -cubeW/2],  
+    [frontX,    noseYBot,  cubeW/2],  
+    [noseApexX, noseYBot,  0],       
+    [0, -1, 0]                    
+  );
+  const noseFillBottomCount = idx.length - noseFillBottomStart;
+  const noseFillCount = idx.length - noseFillStart;
+
+  // --- Side Door
+  // Fallbacks if the enclosed-body dimensions are not yet defined
+  const cubeL = deckL || 6.5; // trailer body length
+  const cubeCenterZ = 0; 
+  const doorStart = idx.length;
+  let rearDoorStart = 0, rearDoorCount = 0;
+  let rearDoorPanelStart = 0, rearDoorPanelCount = 0;
+  let rearTrimTopStart = 0, rearTrimTopCount = 0;
+  let rearTrimLeftStart = 0, rearTrimLeftCount = 0;
+  let rearTrimRightStart = 0, rearTrimRightCount = 0;
+  let rearTrimBottomStart = 0, rearTrimBottomCount = 0;
+  let doorPanelStart = idx.length;
+  let doorPanelCount = 0; 
+  let trimStart = 0;
+  let trimCount = 0;  
+  let innerFrameStart = 0;
+  let innerFrameCount = 0;
+
+  {
+    const zFace = cubeCenterZ + cubeW/2 - 2.14;     // right wall face (slightly forward to avoid z-fight)
+    const bodyBottom = cubeCenterY - cubeH/2;
+
+    // Size/placement: ~36"x72" proportions, forward of center
+    const doorH = cubeH * 0.75;
+    const doorW = doorH * 0.45;
+    const threshold = 0.12;                           // little step above the bottom edge
+    const marginFromFront = cubeL * 0.36;            // distance from front corner along X
+
+    const xL = cubeCenterX - cubeL/1.4 + marginFromFront;
+    const xR = xL + doorW;
+    const yB = bodyBottom + threshold;
+    const yT = yB + doorH;
+
+
+    // Bright metal frame (thin ring around door)
+    const frameW = 0.02;
+    pushQuad(
+      [xL - frameW, yB - frameW, zFace],
+      [xR + frameW, yB - frameW, zFace],
+      [xR + frameW, yT + frameW, zFace],
+      [xL - frameW, yT + frameW, zFace],
+      [0, 0, 1]
+
+    );
+
+    // Door panel (slightly proud of wall)
+    const zDoor = zFace + 0.002;
+    pushQuad(
+      [xL, yB, zDoor],
+      [xR, yB, zDoor],
+      [xR, yT, zDoor],
+      [xL, yT, zDoor],
+      [0, 0, -1]
+    );
+
+innerFrameStart = idx.length;
+const innerFrameW = .02;      // thickness of the frame strips
+const innerZ      = zFace + .05; // slightly INSIDE the trailer (negative direction)
+
+// Top strip
+pushQuad(
+  [xL, yT - innerFrameW, innerZ],
+  [xR, yT - innerFrameW, innerZ],
+  [xR, yT,             innerZ],
+  [xL, yT,             innerZ],
+  [0, 0, -1]
+);
+
+// Bottom strip
+pushQuad(
+  [xL, yB,             innerZ],
+  [xR, yB,             innerZ],
+  [xR, yB + innerFrameW, innerZ],
+  [xL, yB + innerFrameW, innerZ],
+  [0, 0, -1]
+);
+
+// Left strip
+pushQuad(
+  [xL,           yB, innerZ],
+  [xL + innerFrameW, yB, innerZ],
+  [xL + innerFrameW, yT, innerZ],
+  [xL,           yT, innerZ],
+  [0, 0, -1]
+);
+
+// Right strip
+pushQuad(
+  [xR - innerFrameW, yB, innerZ],
+  [xR,           yB, innerZ],
+  [xR,           yT, innerZ],
+  [xR - innerFrameW, yT, innerZ],
+  [0, 0, -1]
+);
+innerFrameCount = idx.length - innerFrameStart;
+console.log("DRAW inner frame", { innerFrameStart, innerFrameCount });
+
+
+  // --- Side Door Handle Bar (silver with black tip) ---
+  {
+    const barZ = zDoor + 0.015;           // slight offset forward
+    const barWB = doorW * 0.5;           // bar width
+    const barH  = doorH * 0.03;           // bar height
+    const barYC = (yB + yT) * 0.5;        // halfway up door
+    const y1 = barYC - barH/2;
+    const y2 = barYC + barH/2;
+    const x1 = xL - frameW + 0.5;
+    const x2 = x1 + barWB;
+
+    // Silver bar
+  sideBarStart = idx.length;
+  pushQuad(
+    [x2, y1, barZ],
+    [x1, y1, barZ],
+    [x1, y2, barZ],
+    [x2, y2, barZ],
+    [0, 0, -1]
+  );
+  sideBarCount = idx.length - sideBarStart;
+
+  // Black tip at top of bar
+  sideTipStart = idx.length;
+  const tipL = x2 - .35;
+  const tipR = tipL + (barWB * 0.18);
+  pushQuad(
+    [tipL, y1, barZ + 0.001],
+    [tipR, y1, barZ + 0.001],
+    [tipR, y2, barZ + 0.001],
+    [tipL, y2, barZ + 0.001],
+    [0, 0, -1]
+  );
+
+  sideTipCount = idx.length - sideTipStart;
+  }
+
+   // Silver trim frame around the side door
+   trimStart = idx.length;
+   const trimOffset = 0.007;   // slightly forward so it doesn’t z-fight with door
+   const trimDepth  = zDoor + trimOffset;
+   const trimW = 0.015;        // trim thickness
+
+   // Top strip
+  pushQuad(
+    [xL - frameW - trimW, yT + frameW, trimDepth],
+    [xR + frameW + trimW, yT + frameW, trimDepth],
+    [xR + frameW + trimW, yT + frameW + trimW, trimDepth],
+    [xL - frameW - trimW, yT + frameW + trimW, trimDepth],
+    [0, 0, -1]
+  );
+
+  // Bottom strip
+  pushQuad(
+    [xL - frameW - trimW, yB - frameW - trimW, trimDepth],
+    [xR + frameW + trimW, yB - frameW - trimW, trimDepth],
+    [xR + frameW + trimW, yB - frameW, trimDepth],
+    [xL - frameW - trimW, yB - frameW, trimDepth],
+    [0, 0, -1]
+  );
+
+  // Left strip
+  pushQuad(
+    [xL - frameW - trimW, yB - frameW - trimW, trimDepth],
+    [xL - frameW, yB - frameW - trimW, trimDepth],
+    [xL - frameW, yT + frameW + trimW, trimDepth],
+    [xL - frameW - trimW, yT + frameW + trimW, trimDepth],
+    [0, 0, -1]
+  );
+
+  // Right strip
+  pushQuad(
+    [xR + frameW, yB - frameW - trimW, trimDepth],
+    [xR + frameW + trimW, yB - frameW - trimW, trimDepth],
+    [xR + frameW + trimW, yT + frameW + trimW, trimDepth],
+    [xR + frameW, yT + frameW + trimW, trimDepth],
+    [0, 0, -1]
+  );
+
+
+function addBodyTrim() {
+
+  const W = trimW + .02;
+  const noseOverlap = 0.009;
+  const topTrimY = by1 - 0.009; 
+
+  // --- TOP TRIM ---
+  // rear upper trim
+  addRectBeam([bx1, topTrimY, leftZ - .02],  [bx1, topTrimY, rightZ + .02],  W, W);
+  // left upper trim
+  addRectBeam([bx1, topTrimY, rightZ], [bx0 - noseOverlap, topTrimY, rightZ - .01],  W, W);
+  addRectBeam([bx0, topTrimY, rightZ], [noseApexX - .01, topTrimY, -.01], W, W);
+  addRectBeam([noseApexX - .01, topTrimY, .01],[bx0, topTrimY, leftZ],   W, W);
+  addRectBeam([bx0 - noseOverlap, topTrimY, leftZ + .01],  [bx1, topTrimY, leftZ],   W, W);
+
+  // --- BOTTOM TRIM ---
+  addRectBeam([bx1, by0, leftZ - .02],  [bx1, by0, rightZ + .02],  W, W);
+  addRectBeam([bx1, by0, rightZ], [bx0, by0, rightZ],  W, W);
+  addRectBeam([bx0, by0, leftZ],  [bx1, by0, leftZ],   W, W);
+}
+
+  trimCount = idx.length - trimStart;
+
+// Roof Line Geometry (like trim)
+
+roofLineStart = idx.length;
+
+const roofY = cubeCenterY + cubeH/2 + 0.001;  
+const startX = frontX;
+const endX   = cubeCenterX + cubeL/2;
+
+const segments = 4; 
+const spacing = (endX - startX) / segments;
+
+const lineW = trimW;  // same thickness as trim
+const lineH = trimW;  // same height as trim
+
+for (let i = 0; i < segments; i++) {
+    const x = startX + spacing * i;
+
+    addRectBeam(
+        [x, roofY, leftZ],
+        [x, roofY, rightZ],
+        lineW,
+        lineH
+    );
+}
+roofLineCount = idx.length - roofLineStart;
+
+// inside roof rails
+  innerRoofLineStart = idx.length;
+
+const innerLineH = trimW/2;
+
+for (let i = 0; i < segments; i++) {
+    const x = startX + spacing * i;
+
+    addRectBeam(
+        [x, roofY - .01, leftZ],
+        [x, roofY - .01, rightZ],
+        lineW,
+        innerLineH
+    );
+}
+
+innerRoofLineCount = idx.length - innerRoofLineStart;
+
+
+
+  // --- Rear Door (back wall) — Enclosed mode ---
+  rearDoorStart = idx.length;
+  rearDoorPanelStart = idx.length;
+  {
+  // Back face of the cube (outward is +X)
+  const backX = cubeCenterX + cubeLen/2;
+  const xFace = backX + .01;
+  const bodyBottom = cubeCenterY - cubeH/2;
+  const doorH = cubeH * 0.85;
+  const doorW = doorH * 1.2;
+  const threshold = 0.12;
+
+  // Center the door in Z on the rear wall; adjust as you like
+  const zCenter = 0.0;
+  const zL = zCenter - doorW/2;
+  const zR = zCenter + doorW/2;
+  const yB = bodyBottom + threshold;
+  const yT = yB + doorH;
+
+  // 1) Bright metal frame plate underlay (same as side door idea)
+  const frameW = 0.02;
+  // normal must face +X on the back wall
+  pushQuad(
+    [xFace, yB - frameW, zL - frameW],
+    [xFace, yB - frameW, zR + frameW],
+    [xFace, yT + frameW, zR + frameW],
+    [xFace, yT + frameW, zL - frameW],
+    [1, 0, 0]
+  );
+
+  // 2) Door panel (slightly proud of frame)
+  const xDoor = xFace + 0.002;
+  pushQuad(
+    [xDoor, yB, zL],
+    [xDoor, yB, zR],
+    [xDoor, yT, zR],
+    [xDoor, yT, zL],
+    [1, 0, 0]
+  );
+// --- Rear Door Handle Bar (silver with black tip) ---
+{
+  const barX = xDoor + 0.015;           // rear door faces +X, so X moves outward
+  const barZ = zR - frameW + 0.02;      // left side of rear door
+  const barWB = (zR - zL) * 0.25;       // bar width
+  const barH  = doorH * 0.06;           // bar height
+  const barYC = (yB + yT) * 0.5;
+  const y1 = barYC - barH/2;
+  const y2 = barYC + barH/2;
+  const z1 = zL - frameW - 0.02;
+  const z2 = z1 + barWB;
+
+  // Silver bar
+  rearBarStart = idx.length;
+  pushQuad(
+    [barX, y1, z1],
+    [barX, y1, z2],
+    [barX, y2, z2],
+    [barX, y2, z1],
+    [1, 0, 0]
+  );
+  rearBarCount = idx.length - rearBarStart;
+
+  // Black tip
+  rearTipStart = idx.length;
+  const tipZ1 = z2;
+  const tipZ2 = tipZ1 + (barWB * 0.18);
+
+  pushQuad(
+    [barX + 0.001, y1, tipZ1],
+    [barX + 0.001, y1, tipZ2],
+    [barX + 0.001, y2, tipZ2],
+    [barX + 0.001, y2, tipZ1],
+    [1, 0, 0]
+  );
+  rearTipCount = idx.length - rearTipStart;
+}
+
+  // 3) Latch (small vertical rect near the right edge when viewed from behind)
+  const hW = doorW * 0.03, hH = doorH * 0.12;
+  const hzC = (zL + zR) * 0.5;
+  const hzL = zR - doorW * 0.11 - hW;   // offset in from the right edge
+  const hzR = hzL + hW;
+  rearDoorPanelCount = idx.length - rearDoorPanelStart;
+  pushQuad(
+    [xDoor + 0.005, yB + (doorH*0.5 - hH/2), hzL],
+    [xDoor + 0.005, yB + (doorH*0.5 - hH/2), hzR],
+    [xDoor + 0.005, yB + (doorH*0.5 + hH/2), hzR],
+    [xDoor + 0.005, yB + (doorH*0.5 + hH/2), hzL],
+    [1, 0, 0]
+  );
+
+  // --- Rear trim as 4 thin strips (top/left/right silver, bottom black) ---
+  const trimOffset = 0.0007;
+  const xTrim  = xDoor + trimOffset;
+  const trimW  = 0.015;
+
+  // Top strip (silver)
+  rearTrimTopStart = idx.length;
+  pushQuad(
+    [xTrim, yT + frameW, zL - frameW - trimW],
+    [xTrim, yT + frameW, zR + frameW + trimW],
+    [xTrim, yT + frameW + trimW, zR + frameW + trimW],
+    [xTrim, yT + frameW + trimW, zL - frameW - trimW],
+    [1, 0, 0]
+  );
+  rearTrimTopCount = idx.length - rearTrimTopStart;
+
+  // Left strip (silver)
+  rearTrimLeftStart = idx.length;
+  pushQuad(
+    [xTrim, yB - frameW - trimW, zL - frameW],
+    [xTrim, yB - frameW,          zL - frameW - trimW],
+    [xTrim, yT + frameW + trimW,  zL - frameW - trimW],
+    [xTrim, yT + frameW + trimW,  zL - frameW],
+    [1, 0, 0]
+  );
+  rearTrimLeftCount = idx.length - rearTrimLeftStart;
+
+  // Right strip (silver)
+  rearTrimRightStart = idx.length;
+  pushQuad(
+    [xTrim, yB - frameW - trimW, zR + frameW],
+    [xTrim, yB - frameW,          zR + frameW + trimW],
+    [xTrim, yT + frameW + trimW,  zR + frameW + trimW],
+    [xTrim, yT + frameW + trimW,  zR + frameW],
+    [1, 0, 0]
+  );
+  rearTrimRightCount = idx.length - rearTrimRightStart;
+
+  // Bottom strip (BLACK)
+  rearTrimBottomStart = idx.length;
+  pushQuad(
+    [xTrim, yB - frameW - trimW, zL - frameW - trimW],
+    [xTrim, yB - frameW - trimW, zR + frameW + trimW],
+    [xTrim, yB - frameW,         zR + frameW + trimW],
+    [xTrim, yB - frameW,         zL - frameW - trimW],
+    [1, 0, 0]
+  );
+  rearTrimBottomCount = idx.length - rearTrimBottomStart;
+  }
+  const rearDoorCount = idx.length - rearDoorStart;
+  
+  }
+
+  // Add FLOOR quad under trailer
+  const floorStart = idx.length;
+
+  // Put floor slightly below the trailer to avoid z-fighting
+  const floorY = by0 - 0.001;
+  const floorTopY = by0 + 0.05;
+  const floorBotY = by0;
+
+  pushQuad(
+    [bx0, floorY, leftZ],   
+    [bx1, floorY, leftZ],   
+    [bx1, floorY, rightZ],  
+    [bx0, floorY, rightZ],  
+    [0, -1, 0]              
+  );
+
+  pushTri(
+    [frontX, floorY, leftZ],  
+    [frontX, floorY, rightZ],  
+    [noseApexX, floorY, 0],       
+    [0, -1, 0] 
+  );
+
+
+  // INTERIOR FLOOR inside the enclosed trailer
+  // slightly *above* the box bottom so it doesn't Z-fight
+  const innerFloorStart = idx.length;
+  const innerFloorY = by0 + 0.04;
+
+  // main box interior floor
+  // Top
+  pushQuad(
+    [bx0, floorTopY, leftZ + .008],
+    [bx1, floorTopY, leftZ + .008],
+    [bx1, floorTopY, rightZ],
+    [bx0, floorTopY, rightZ],
+    [0, 1, 0]
+  );
+  // Driver side
+  pushQuad(
+    [bx0, floorBotY, rightZ - .005],
+    [bx1, floorBotY, rightZ - .005],
+    [bx1, floorTopY, rightZ - .005],
+    [bx0, floorTopY, rightZ - .005],
+    [0, 0, 1]
+  );
+
+  // Rear edge
+  pushQuad(
+    [bx1 - .008, floorTopY, leftZ],
+    [bx1 - .008, floorTopY, rightZ],
+    [bx1 - .008, floorBotY, rightZ],
+    [bx1 - .008, floorBotY, leftZ],
+    [1, 0, 0]
+  );
+
+ 
+  // V-nose interior floor
+  const noseInnerFloorStart = idx.length;
+  pushTri(
+    [frontX,    innerFloorY, leftZ],
+    [noseApexX, innerFloorY, 0],
+    [frontX,    innerFloorY, rightZ],
+    [0, 1, 0]   // normal up
+  );
+
+  const innerFloorCount = idx.length - innerFloorStart;
+  const noseInnerFloorCount = idx.length - noseInnerFloorStart;
+
+  const floorCount = idx.length - floorStart;
+  const sideDoorStart = doorStart;   
+  const sideDoorCount = idx.length - sideDoorStart;
+  const fullTrimStart = idx.length;
+  addBodyTrim();
+  const fullTrimCount = idx.length - fullTrimStart;
+  const metalStart = idx.length;
+
+  // side rails (bars)
+  const railH=0.35, railT=0.04;
+  // left/right top rails (straight)
+  addBox(0, railH, -deckW/2, deckL, railT, railT);
+  addBox(0, railH,  deckW/2, deckL, railT, railT);
+  // front rail (vertical)
+  addBox(-deckL/2, railH/2, 0, railT, railH, railT);
+  // front top rail (horizontal)
+  addBox(-deckL/2, railH, 0, railT, railT, deckW);
+  addBox(-deckL/2, railH/2, 0, railT, railH, railT);
+  // stanchions (posts)
+  const postN=5; for(let i=0;i<postN;i++){ const x=-deckL/2 + i*(deckL/(postN-1)); addBox(x, railH/2, -deckW/2, railT, railH, railT); addBox(x, railH/2, deckW/2, railT, railH, railT); }
+
+  // rear ramp gate frame (slim)
+  const gateW=deckW, gateH=1.05, gateT=0.04;
+  const gateX = deckL/2 - gateT/2; // side plane x
+  // side frame rails down to bumper (both sides)
+  addBox(deckL/2, gateH/2, -gateW/2 + gateT/2, gateT*0.5, gateH, gateT);
+  addBox(deckL/2, gateH/2,  gateW/2 - gateT/2, gateT*0.5, gateH, gateT);
+  // Top rail: straight bar connecting side rails
+  const gateYTop = gateH - gateT/2; // renamed from yTop to avoid collisions
+  addBox(deckL/2, gateYTop, 0, gateT*0.5, gateT, gateW);
+  // bottom bar
+  addBox(deckL/2, gateT/2, 0, gateT*0.5, gateT, gateW);
+  // inner vertical ribs (5 slimmer ribs like reference)
+  for(let i=-2;i<=2;i++){ const z = i*(gateW/5); addBox(deckL/2, gateH/2, z, gateT*0.35, gateH-gateT*2, gateT*0.35); }
+
+  function normalFrom3(p0, p1, p2){
+    const ux=p1[0]-p0[0], uy=p1[1]-p0[1], uz=p1[2]-p0[2];
+    const vx=p2[0]-p0[0], vy=p2[1]-p0[1], vz=p2[2]-p0[2];
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+    const nl=Math.hypot(nx,ny,nz)||1;
+    return [nx/nl, ny/nl, nz/nl];
+  }
+
+  // wheel + axle + tires
+  // In single mode, axle at 60%. In tandem mode, first axle at 55% and second at 75%.  
+  // First-axle positions for both modes (build both, draw conditionally)
+  const axleXSingle = -deckL/2 + deckL * .6;   // single mode
+  const axleXFrontTandem = -deckL/2 + deckL * 0.55; // tandem mode (front axle)
+  const axleRadius = 0.04;
+
+  // --- First axle (SINGLE variant @ 60%)
+  const firstAxleSingleStart = idx.length;
+
+  // Axle shaft (capture range)
+  const axleSingleShaftStart = idx.length;
+  addCylinder(axleXSingle, -0.05, 0, axleRadius, deckW / .9, 'z', 96);
+  const axleSingleShaftCount = idx.length - axleSingleShaftStart;
+
+  // --- Wheels (single axle) ---
+  const wheelZRight =  deckW/2 + 0.5*0.15;   // rimThickness ≈ 0.15 in your file
+  const wheelZLeft  = -deckW/2 - 0.5*0.15;
+
+  // Build a rounded profile across Z using 7 rings (bulged sidewalls)
+  const tireTreadR = 0.3;   // outer tread radius
+  const tireSideR  = 0.3;   // bulged sidewall radius
+  const tireWidth  = .21;   // tire width
+  
+  function tireProfile(width){
+    const w2 = width/2;
+    const rings = 9;                // a couple more rings for smoother sidewall
+    const beadR = 0.26 * 0.8;      // slightly inside rim outer (meets rim face cleanly)
+    const arr = [];
+    for (let k=0; k<rings; k++){
+      const t = k/(rings-1);             // 0..1 across width
+      const z = -w2 + t*width;           // ring Z
+      // ease sidewall bulge, but clamp ends to beadR
+      let r = tireSideR + (tireTreadR - tireSideR) * (1 - (0.5 - 0.5*Math.cos(Math.PI*Math.min(1, Math.abs(0.5-t)*2))));
+      if (k === 0 || k === rings-1) r = beadR;      // bead at the rim
+      if (k === 1 || k === rings-2) r = (r + beadR)*0.5; // gentle transition from bead
+      arr.push([z, r]);
+    }
+    return arr;
+  }
+  const tireRings = tireProfile(tireWidth);
+
+  // RIGHT tire + rim (capture each)
+  const tireSingleRightStart = idx.length;
+  addTireZ(axleXSingle, -0.05, wheelZRight + .08, tireRings, 96, 22, 0.0035);
+  {
+    const ax = axleXSingle, ay = -0.05, cz = wheelZRight;
+    const backZ   = cz + tireRings[0][0];
+    const frontZ  = cz + tireRings[tireRings.length-1][0];
+    const backIn  =      tireRings[0][1];
+    const backOut =      tireRings[1][1];
+    const frontIn =      tireRings[tireRings.length-1][1];
+    const frontOut=      tireRings[tireRings.length-2][1];
+
+  }
+  const tireSingleRightCount = idx.length - tireSingleRightStart;
+
+  const rimSingleRightStart = idx.length;
+  addRimZ (axleXSingle, -0.05, wheelZRight + .09, 0.26, 0.15, 0.08, 96, true);
+  const rimSingleRightCount = idx.length - rimSingleRightStart;
+
+  // LEFT tire + rim (capture each)
+  const tireSingleLeftStart = idx.length;
+  addTireZ(axleXSingle, -0.05, wheelZLeft - .08, tireRings, 96, 22, 0.0035);
+  {
+    const ax = axleXSingle, ay = -0.01, cz = wheelZLeft;
+    const backZ   = cz + tireRings[0][0];
+    const frontZ  = cz + tireRings[tireRings.length-1][0];
+    const backIn  =      tireRings[0][1];
+    const backOut =      tireRings[1][1];
+    const frontIn =      tireRings[tireRings.length-1][1];
+    const frontOut=      tireRings[tireRings.length-2][1];
+  }
+  const tireSingleLeftCount = idx.length - tireSingleLeftStart;
+
+  const rimSingleLeftStart = idx.length;
+  addRimZ (axleXSingle, -0.05, wheelZLeft - .09, 0.26, 0.13, 0.08, 96, false);
+  const rimSingleLeftCount = idx.length - rimSingleLeftStart;
+
+  // simple plane (box) placed above each tire -> replaced with *curved* arched plane
+  const rimRadius = 0.26; 
+  const rimThickness = 0.15;
+  const planeThickness = 0.02; 
+  const planeLength = rimRadius * 2.2;
+  const planeWidth = rimThickness * 1.8;
+  const planeHeight = rimRadius * .25;
+
+  // Capture single-fender index range
+  const singleFenderStart = idx.length;
+  // RIGHT side curved plane
+  addCurvedPlaneOverTireAt(axleXSingle,
+    deckW/1.87 + rimThickness*0.5,
+    rimRadius * 1.3,
+    planeWidth,
+    railH - 0.3, // TEMP: raise the single‑fender RIGHT plane above the top rail for identification
+ // REVERT: put single-fender plane back
+
+    192
+  );
+  // LEFT side curved plane
+  addCurvedPlaneOverTireAt(axleXSingle,
+    -deckW/1.87 - rimThickness*0.5,
+    rimRadius * 1.3,
+    planeWidth,
+    railH - 0.3, // TEMP: raise the single‑fender LEFT plane above the top rail for identification
+ // REVERT: put single-fender plane back
+
+    192
+  );
+  const firstAxleSingleCount = idx.length - firstAxleSingleStart;
+  let singleFenderCount = idx.length - singleFenderStart; // will be updated after adding end caps so caps hide in tandem mode too
+
+  // Add half-circle end caps to the back side of the fenders (unchanged in this patch)
+  const endCapRadius = rimRadius * 1.297;
+  const endCapZRight = deckW/2.1 + rimThickness*0.5;
+  const endCapZLeft = -deckW/2.1 - rimThickness*0.5;
+  const endCapX = axleXSingle + endCapRadius - 0.3355; 
+
+  // right side back half circle cap (current orientation preserved)
+  addHalfDisc(endCapX, planeHeight - .06, endCapZRight, endCapRadius, 'z', 64);
+  // left side back half circle cap
+  addHalfDisc(endCapX, planeHeight - .05, endCapZLeft, endCapRadius, 'z', 64);
+  
+  // Update single fender count to INCLUDE the end caps so they hide in tandem mode
+  singleFenderCount = idx.length - singleFenderStart;
+  
+  // --- First axle (TANDEM variant @ 55%) — build but draw only in tandem mode
+  const firstAxleTandemStart = idx.length;
+
+  // Axle shaft (keep)
+  const axleFrontTandemShaftStart = idx.length;
+  addCylinder(axleXFrontTandem, -0.05, 0, axleRadius, deckW / .9, 'z', 96);
+  const axleFrontTandemShaftCount = idx.length - axleFrontTandemShaftStart;
+
+  // FRONT wheels
+  const tireFrontRightStart = idx.length;
+  addTireZ(axleXFrontTandem, -0.05, wheelZRight + .08, tireRings, 96, 22, 0.0035);
+  const tireFrontRightCount = idx.length - tireFrontRightStart;
+
+  const rimFrontRightStart = idx.length;
+  addRimZ (axleXFrontTandem, -0.05, wheelZRight + .08, 0.26, 0.15, 0.08, 96);
+  const rimFrontRightCount = idx.length - rimFrontRightStart;
+
+  const tireFrontLeftStart = idx.length;
+  addTireZ(axleXFrontTandem, -0.05, wheelZLeft - .08,  tireRings, 96, 22, 0.0035);
+  const tireFrontLeftCount = idx.length - tireFrontLeftStart;
+
+  const rimFrontLeftStart = idx.length;
+  addRimZ (axleXFrontTandem, -0.05, wheelZLeft -.08,  0.26, 0.15, 0.08, 96, false);
+  const rimFrontLeftCount = idx.length - rimFrontLeftStart;
+
+  const firstAxleTandemCount = idx.length - firstAxleTandemStart;
+
+  // --- SECOND AXLE geometry appended but drawn conditionally ---
+  const secondAxleStart_marker = idx.length;
+
+  // Axle shaft (keep)
+  const axleRearTandemShaftStart = idx.length;
+  const axleX2 = -deckL/2 + deckL * 0.75;
+  addCylinder(axleX2, -0.05, 0, axleRadius, deckW / .9, 'z', 96);
+  const axleRearTandemShaftCount = idx.length - axleRearTandemShaftStart;
+
+  // Tandem Fender 
+  const sideFlatsStart = idx.length;
+  const deckBottomY = -deckT / 2;
+
+  addTandemTwoFlats(
+    axleXFrontTandem, axleX2 + .1,
+    wheelZLeft - .07,
+    railH,
+    {
+      targetBottomY: deckBottomY,
+      targetBottomYBack: -deckT/2, 
+      padFrontX: 0.22,   // was ~0.12
+      padRearX:  0.12,
+      lipLenFront: tireTreadR * .9,
+      lipLenBack:       tireTreadR * .9,
+      seg: 192, tireWidth, tireRadius: tireTreadR, overhangZ: 0.02
+    }
+  );
+
+  addTandemTwoFlats(
+    axleXFrontTandem, axleX2 + .1,
+    wheelZRight + .07,
+    railH,
+    {
+      targetBottomY: deckBottomY,
+      targetBottomYBack: -deckT/2, 
+      padFrontX: 0.22,   // was ~0.12
+      padRearX:  0.12,
+      lipLenFront: tireTreadR * .9,
+      lipLenBack:       tireTreadR * .9,
+      seg: 192, tireWidth, tireRadius: tireTreadR, overhangZ: 0.02
+    }
+  ); 
+
+
+  const sideFlatsCount = idx.length - sideFlatsStart;
+
+  // REAR wheels
+  const tireRearRightStart = idx.length;
+  addTireZ(axleX2, -0.05, wheelZRight + .08, tireRings, 96, 22, 0.0035);
+  const tireRearRightCount = idx.length - tireRearRightStart;
+
+  const rimRearRightStart = idx.length;
+  addRimZ (axleX2, -0.05, wheelZRight + .07, 0.26, 0.15, 0.08, 96, true);
+  const rimRearRightCount = idx.length - rimRearRightStart;
+
+  const tireRearLeftStart = idx.length;
+  addTireZ(axleX2, -0.05, wheelZLeft - .08,  tireRings, 96, 22, 0.0035);
+  const tireRearLeftCount = idx.length - tireRearLeftStart;
+
+  const rimRearLeftStart = idx.length;
+  addRimZ (axleX2, -0.05, wheelZLeft - .07,  0.26, 0.15, 0.08, 96, false);
+  const rimRearLeftCount = idx.length - rimRearLeftStart;
+
+  const secondAxleCount = idx.length - secondAxleStart_marker;
+
+  // A-frame tongue — main beams only
+  const tongueY = -0.07; // raise tongue so its top (y + 0.04) touches deck bottom (-deckT/2 = -0.03)
+  // Define bases near the frame and a centered apex so the tips touch
+  const apex = [-deckL/2 - 1.0, tongueY, 0.0];
+  // extend beams to the trailer's left/right edges
+  const sideInset = 0.02;
+  // inward angle while keeping full length to side edges
+  const angleInset = -0.5;
+  const leftBase  = [-deckL/2 - angleInset, tongueY, -deckW/2 + sideInset];
+  const rightBase = [-deckL/2 - angleInset, tongueY,  deckW/2 - sideInset];
+  addRectBeam(leftBase,  apex, 0.06, 0.08);
+  addRectBeam(rightBase, apex, 0.06, 0.08);
+
+  // cross bar across the tongue at ~80% from the bases
+  const tTongue = 0.80;
+  const pL = [
+    leftBase[0] + (apex[0]-leftBase[0]) * tTongue,
+    leftBase[1] + (apex[1]-leftBase[1]) * tTongue,
+    leftBase[2] + (apex[2]-leftBase[2]) * tTongue
+  ];
+  const pR = [
+    rightBase[0] + (apex[0]-rightBase[0]) * tTongue,
+    rightBase[1] + (apex[1]-rightBase[1]) * tTongue,
+    rightBase[2] + (apex[2]-rightBase[2]) * tTongue
+  ];
+  addRectBeam(pL, pR, 0.06, 0.08);
+
+  // Second cross bar at 70%
+  const tTongue2 = 0.70;
+  const pL2 = [
+    leftBase[0] + (apex[0]-leftBase[0]) * tTongue2,
+    leftBase[1] + (apex[1]-leftBase[1]) * tTongue2,
+    leftBase[2] + (apex[2]-leftBase[2]) * tTongue2
+  ];
+  const pR2 = [
+    rightBase[0] + (apex[0]-rightBase[0]) * tTongue2,
+    rightBase[1] + (apex[1]-rightBase[1]) * tTongue2,
+    rightBase[2] + (apex[2]-rightBase[2]) * tTongue2
+  ];
+  addRectBeam(pL2, pR2, 0.06, 0.08);
+
+  // Jack cylinder between the two bars
+  const jackX = (pL[0]+pR[0]+pL2[0]+pR2[0]) / 4;
+  const jackZ = (pL[2]+pR[2]+pL2[2]+pR2[2]) / 4;
+  const jackY = tongueY - .27; // lowered jack position
+  const jackHeight = 0.6;
+  const jackRadius = 0.05;
+  addCylinder(jackX, jackY + jackHeight/2, jackZ, jackRadius, jackHeight, 'y', 48);
+  addDisc(jackX, jackY + jackHeight, jackZ, jackRadius * 0.99, 'y', 48);
+
+  // Small silver cylinder (foot) at bottom of jack
+  const footIndexStart = idx.length; // capture index start for color-isolated draw
+  const footHeight = jackHeight * 0.1;
+  const footRadius = jackRadius * 1.1;
+  addCylinder(jackX, jackY + footHeight/2, jackZ, footRadius, footHeight, 'y', 48);
+
+  // Silver plate (plane) directly under the jack foot
+  const plateThickness = 0.02;
+  const plateRadius = footRadius * 1.5; // define plate size
+  addBox(jackX, jackY - plateThickness/2, jackZ, plateRadius*2, plateThickness, plateRadius*2);
+
+  // Mark end of foot+plate so its draw range stays fixed even if we add more geometry later
+  const footIndexEnd = idx.length;
+  let footIndexCount = footIndexEnd - footIndexStart; // count of indices for foot + plate
+
+  // helper: build one continuous tandem fender per side
+  function addUnifiedTandemFenderSide(axleXFront, axleXRear, z, radius, width, yTop, seg = 160) {
+    const innerZ = z - width / 2;
+    const outerZ = z + width / 2;
+    const cx0 = axleXFront, cx1 = axleXRear;
+    const yOffset = yTop - radius;
+
+  // arch profile blends two half-circles with a flat bridge
+    function archY(x) {
+      const a0 = Math.acos(Math.max(-1, Math.min(1, (x - cx0) / radius)));
+      const a1 = Math.acos(Math.max(-1, Math.min(1, (x - cx1) / radius)));
+      const y0 = Math.sin(a0) * radius + yOffset;
+      const y1 = Math.sin(a1) * radius + yOffset;
+      const flat = yTop; 
+    }
+
+    for (let i = 0; i < seg; i++) {
+      const t0 = i / seg, t1 = (i + 1) / seg;
+      const x0 = cx0 + (cx1 - cx0) * t0;
+      const x1 = cx0 + (cx1 - cx0) * t1;
+      const y0 = archY(x0), y1 = archY(x1);
+
+      const q0 = [x0, y0 - 0.05, innerZ];
+      const q1 = [x0, y0 - 0.05, outerZ];
+      const q2 = [x1, y1 - 0.05, outerZ];
+      const q3 = [x1, y1 - 0.05, innerZ];
+
+      // compute normal
+      const ux = q1[0] - q0[0], uy = q1[1] - q0[1], uz = q1[2] - q0[2];
+      const vx = q3[0] - q0[0], vy = q3[1] - q0[1], vz = q3[2] - q0[2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+
+      pushQuad(q0, q1, q2, q3, [nx, ny, nz]);
+    }
+  }
+
+  function smoothstep(edge0, edge1, x){
+    const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+  }
+
+  // Tandem fender geometry (copy single fender halves + center plane); drawn conditionally
+  const tandemFenderStart = idx.length;
+  const dividerX = (axleXFrontTandem + axleX2) / 2;
+  const fenderYTop = railH - .01;
+  const archRadius = rimRadius * 1.3;
+  const archWidth  = planeWidth * 1.05;
+
+
+
+  const tandemFenderCount = idx.length - tandemFenderStart;
+  
+  // Ground 
+  const groundStart = idx.length;
+  const gy = -deckT/2 - .315;
+  const halfG = 50.0;
+  pushQuad(
+    [-halfG, gy, -halfG],
+    [ halfG, gy, -halfG],
+    [ halfG, gy,  halfG],
+    [-halfG, gy,  halfG],
+    [0, 1, 0]   // upward normal
+  );
+  const groundCount = idx.length - groundStart;
+
+  // convert to typed arrays (auto-pick 16-bit vs 32-bit indices)
+  const P = new Float32Array(pos);
+  const N = new Float32Array(nor);
+
+  // Find the highest index to know if we need 32-bit
+  let maxIndex = 0;
+  for (let i = 0; i < idx.length; i++) if (idx[i] > maxIndex) maxIndex = idx[i];
+
+  // Detect WebGL2 and the OES_element_index_uint extension (for WebGL1)
+  const isWebGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext);
+  const extUint = isWebGL2 ? true : !!gl.getExtension('OES_element_index_uint');
+
+  let I;
+  if (maxIndex > 65535 && extUint) {
+    I = new Uint32Array(idx);
+  } else {
+    // 16-bit is enough (or we can’t use 32-bit)
+    I = new Uint16Array(idx);
+  }
+  
+  const ibo = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, I, gl.STATIC_DRAW);
+
+  // Ranges for selective drawing (so only the jack foot is silver)
+  const singleFenderEnd = singleFenderStart + singleFenderCount;
+  const metalPreDoveStart = metalStart;
+  const metalBetweenAandFStart = firstAxleSingleStart + firstAxleSingleCount;
+  const metalBetweenAandFCount = Math.max(0, singleFenderStart - metalBetweenAandFStart);
+  const metalPostFenderStart = singleFenderEnd;
+  // Split the post-fender metal so the tandem front axle (55%) is *not* drawn in single mode
+  const metalAfterFenderBeforeTandemFrontStart = metalPostFenderStart;
+  const metalAfterFenderBeforeTandemFrontCount = firstAxleTandemStart - metalAfterFenderBeforeTandemFrontStart;
+  const metalBetweenTandemFrontAndSecondAxleStart = firstAxleTandemStart + firstAxleTandemCount;
+  const metalBetweenTandemFrontAndSecondAxleCount = secondAxleStart_marker - metalBetweenTandemFrontAndSecondAxleStart;
+  const metalSeg2Start = secondAxleStart_marker + secondAxleCount; // skip past the whole second axle // after second axle
+  const metalSeg2Count = Math.max(0, footIndexStart - metalSeg2Start); // up to the jack foot
+
+  function buf(target, data, usage){ const b=gl.createBuffer(); gl.bindBuffer(target,b); gl.bufferData(target,data,usage); return b; }
+  const posB=buf(gl.ARRAY_BUFFER,P,gl.STATIC_DRAW);
+  const norB=buf(gl.ARRAY_BUFFER,N,gl.STATIC_DRAW);
+  const idxB=buf(gl.ELEMENT_ARRAY_BUFFER,I,gl.STATIC_DRAW);
+
+  const locPos=gl.getAttribLocation(program,'aPosition');
+  const locNor=gl.getAttribLocation(program,'aNormal');
+  gl.bindBuffer(gl.ARRAY_BUFFER,posB); gl.vertexAttribPointer(locPos,3,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(locPos);
+  gl.bindBuffer(gl.ARRAY_BUFFER,norB); gl.vertexAttribPointer(locNor,3,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(locNor);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idxB);
+
+  const uProjection=gl.getUniformLocation(program,'uProjection');
+
+  gl.clearColor(0.0, 0.0, 0.0, 0.0);   // transparent — reveal CSS gradient
+  gl.enable(gl.DEPTH_TEST);
+  {
+    const L = [-0.35, -0.85, 0.40];
+    const inv = 1/Math.hypot(L[0],L[1],L[2]);
+    gl.uniform3f(uLightDir, L[0]*inv, L[1]*inv, L[2]*inv);
+  }
+
+
+  // Hemisphere defaults: cool sky, neutral ground
+  const uSky = gl.getUniformLocation(program,'uSky');
+  const uGround = gl.getUniformLocation(program,'uGround');
+  const uAmbient = gl.getUniformLocation(program,'uAmbient');
+  const uSpecPower = gl.getUniformLocation(program,'uSpecPower');
+  const uSpecStrength = gl.getUniformLocation(program,'uSpecStrength');
+  const uHemiMix = gl.getUniformLocation(program,'uHemiMix');
+
+  gl.uniform3f(uSky,0.70, 0.75, .8);   // light blue sky
+  gl.uniform3f(uGround,0.38, 0.40, 0.42);   // asphalt-ish ground tint
+  gl.uniform1f(uAmbient, 0.3);             // base ambient
+  gl.uniform1f(uSpecPower, 120.0);           // highlight tightness (higher = tighter)
+  gl.uniform1f(uSpecStrength, 0.55);        // highlight intensity
+  gl.uniform1f(uHemiMix, 1.0);
+
+if (DEBUG) {
+  // --- Self-checks (tests) ---
+  console.assert(locPos !== -1 && locNor !== -1, 'Attrib locations must exist');
+  console.assert(uProjection && uView && uModel && uColor && uLightDir, 'Uniform locations must exist');
+  console.assert(I.length > 0 && P.length > 0, 'Geometry buffers must be non-empty');
+  console.assert(deckIndexCount > 0, 'Deck planks exist');
+  console.assert(seamIndexCount >= (plankCount-1)*6, 'Seam quads should exist');
+  console.assert(typeof gateYTop === 'number' && !isNaN(gateYTop), 'gateYTop defined');
+  console.assert(typeof fenderYTop === 'number' && !isNaN(fenderYTop), 'fenderYTop defined');
+  console.assert(singleFenderCount >= 0 && tandemFenderCount >= 0, 'Fender index ranges valid');
+  console.assert(secondAxleCount >= 0, 'Second axle range valid');
+  console.assert(typeof axleMode === 'string', 'axleMode initialized before use');
+  // NEW: ensure no stray globals that caused prior crashes
+  console.assert(typeof seg === 'undefined', 'seg should not be a global');
+  console.assert(typeof yForWithLip === 'undefined', 'no stray yForWithLip at top level');
+}
+
+  // Camera (orbit)
+  let yaw=2.5, pitch=0.35, dist=6.0; const target=[0,0.3,0]; const up=[0,1,0];
+
+  // Interaction
+  let dragging=false, lx=0, ly=0; const DPR=()=>Math.min(3, window.devicePixelRatio||1);
+  canvas.addEventListener('mousedown', e=>{dragging=true; lx=e.clientX; ly=e.clientY;});
+  window.addEventListener('mouseup', ()=>dragging=false);
+  window.addEventListener('mousemove', e=>{ if(!dragging) return; const dx=(e.clientX-lx)/200; const dy=(e.clientY-ly)/200; yaw+=dx; pitch=Math.max(-1.2, Math.min(1.2, pitch+dy)); lx=e.clientX; ly=e.clientY; });
+  window.addEventListener('wheel', e=>{ dist=Math.max(3, Math.min(15, dist + e.deltaY*0.01)); });
+  document.getElementById('btnReset').onclick = ()=>{ yaw=2.5; pitch=0.35; dist=6.0; };
+  // Axle mode toggle (axleMode already initialized above)
+  const btnAxle = document.getElementById('btnAxle');
+  btnAxle.textContent = (axleMode === 'single') ? 'Single Axle' : 'Tandem Axle';
+  btnAxle.onclick = ()=>{
+    axleMode = (axleMode === 'single') ? 'tandem' : 'single';
+    if (typeof localStorage !== 'undefined') localStorage.setItem('axleMode', axleMode);
+      // No hard reload — keep rendering alive
+      btnAxle.textContent = (axleMode === 'single') ? 'Single Axle' : 'Tandem Axle';
+      console.log('Axle mode:', axleMode, '(geometry draws conditionally; live toggle)');
+    };
+
+    const btnInterior = document.getElementById('btnInterior');
+    btnInterior.onclick = () => {
+      interiorView = !interiorView;
+      btnInterior.textContent = interiorView ? 'Exterior View' : 'Interior View';
+    };
+  // Axle selection cards (Single/Tandem) control axleMode too
+  const axleButtons = document.querySelectorAll('.axle-option');
+  const tandemCard = document.querySelector('.axle-option[data-axle="tandem"]');
+
+  function setAxleMode(mode) {
+    axleMode = (mode === 'tandem') ? 'tandem' : 'single';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('axleMode', axleMode);
+    }
+    // keep header button text in sync (until you remove it)
+    if (typeof btnAxle !== 'undefined' && btnAxle) {
+      btnAxle.textContent = (axleMode === 'single') ? 'Single Axle' : 'Tandem Axle';
+    }
+    // update card selection UI
+    axleButtons.forEach(b => {
+      const isSelected = (b.dataset.axle === axleMode);
+      b.classList.toggle('is-selected', isSelected);
+      b.style.borderColor = isSelected ? '#ff6a00' : 'transparent';
+    });
+
+    console.log('Axle mode set by cards:', axleMode);
+  }
+
+    // click behavior for cards
+    axleButtons.forEach(b => {
+      b.addEventListener('click', () => setAxleMode(b.dataset.axle));
+  });
+
+  // initialize card selection on load
+  setAxleMode(axleMode);
+  window.addEventListener('keydown', e=>{ if(e.key==='r'||e.key==='R') document.getElementById('btnReset').click(); });
+
+const axleWarning = document.getElementById("axle-warning");
+function applyAxleRulesForLength() {
+  const L = Number(lengthSelect.value);
+
+  const tandemAllowed = (L !== 10);
+
+  if (tandemCard) {
+    tandemCard.classList.toggle("is-disabled", !tandemAllowed);
+  }
+  // Show / hide warning text
+  if (axleWarning) {
+    axleWarning.hidden = tandemAllowed;
+  }
+  if (btnAxle) {
+    btnAxle.disabled = !tandemAllowed;
+    btnAxle.style.opacity = tandemAllowed ? "" : "0.35";
+    btnAxle.style.cursor  = tandemAllowed ? "" : "not-allowed";
+  }
+
+  if (!tandemAllowed && axleMode === "tandem") {
+    setAxleMode("single");
+  }
+}
+
+// Run whenever length changes + once on load
+lengthSelect.addEventListener("change", applyAxleRulesForLength);
+applyAxleRulesForLength();
+
+// Tabs
+function showPanel(panelName) {
+  document.querySelectorAll('.config-panel-body').forEach(panel => {
+    const shouldShow = (panel.dataset.tabBody === panelName);
+    const display = panel.dataset.display || 'block';
+    panel.style.display = shouldShow ? display : 'none';
+  });
+}
+
+let currentPanel = "length";
+showPanel(currentPanel);
+
+document.getElementById("next").addEventListener("click", (e) => {
+  e.preventDefault();
+
+  if (currentPanel === "length") {
+    currentPanel = "width";
+    showPanel("width");
+    return;
+  }
+
+  if (currentPanel === "width") {
+    currentPanel = "size_axle";
+    showPanel("size_axle");
+    return;
+  }
+
+  if (currentPanel === "size_axle") {
+    currentPanel = "color";
+    showPanel("color");
+    if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "color") {
+    currentPanel = "features";
+    showPanel("features");
+    //if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+});
+document.getElementById("back").addEventListener("click", (e) => {
+  e.preventDefault();
+
+  if (currentPanel === "features") {
+    currentPanel = "color";
+    showPanel("color");
+    if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "color") {
+    currentPanel = "size_axle";
+    showPanel("size_axle");
+    return;
+  }
+
+  if (currentPanel === "size_axle") {
+    currentPanel = "width";
+    showPanel("width");
+    return;
+  }
+
+  if (currentPanel === "width") {
+    currentPanel = "length";
+    showPanel("length");
+    return;
+  }
+});
+
+document.getElementById("restart").addEventListener("click", (e) => {
+  e.preventDefault();
+  currentPanel = "length";
+  showPanel("length");
+  lengthSelect.value = "10";
+  applyWidthFilterForLength();
+  applyAxleRulesForLength();
+  // Reset color to Silver
+  const silverBtn = document.querySelector('.color-option[data-color="silver"]');
+  if (silverBtn) {
+    silverBtn.click();
+  }
+});
+
+// --- COLOR BUTTON LISTENER ---
+document.querySelectorAll('.color-option').forEach(btn => {
+  btn.addEventListener('click', () => {
+
+    // UI highlight
+    document.querySelectorAll('.color-option')
+      .forEach(b => b.classList.remove('is-selected'));
+    btn.classList.add('is-selected');
+
+    // which color was clicked?
+    const key = btn.dataset.color;
+
+    // only recolor if we're viewing an enclosed trailer
+    if (bodyMode === 'enclosed' && COLOR_MAP[key]) {
+
+      enclosedColor = COLOR_MAP[key];
+
+      // update the shader color immediately
+      gl.uniform3f(
+        uColor,
+        enclosedColor[0],
+        enclosedColor[1],
+        enclosedColor[2]
+      );
+    }
+  });
+});
+// ---- DEFAULT COLOR ----
+const defaultKey = "silver";
+const defaultBtn = document.querySelector(`.color-option[data-color="${defaultKey}"]`);
+
+if (defaultBtn) {
+  defaultBtn.click(); // triggers the same code path as a real user click
+}
+// Horizontal color scroll arrows
+const colorScroll = document.querySelector(".color-scroll");
+const arrows = document.querySelectorAll(".scroll-arrow");
+
+arrows.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const dir = btn.dataset.scroll;
+    const amount = 250; // pixels per click
+
+    if (dir === "left") {
+      colorScroll.scrollLeft -= amount;
+    } else {
+      colorScroll.scrollLeft += amount;
+    }
+  });
+});
+// Reveal color cards as they scroll into view
+function updateColorReveal() {
+  const colorStrip = document.querySelector('.color-strip');
+  if (!colorScroll || !colorStrip) return;
+
+  let isAnimating = false;
+
+  function gapPx(){
+    const s = getComputedStyle(colorStrip);
+    // works for either grid or flex with gap/column-gap
+    return parseFloat(s.columnGap || s.gap || '12') || 12;
+  }
+  function cardWidth(){
+    const first = colorStrip.children[0];
+    if (!first) return 0;
+    // width of one card + the gap between cards
+    return first.getBoundingClientRect().width + gapPx();
+  }
+
+  // public API used by your arrows: slide(1) next, slide(-1) prev
+  window.colorScroll = function(dir){
+    if (isAnimating || !colorStrip.children.length) return;
+    isAnimating = true;
+
+    const w = cardWidth();
+    const dur = 350; // ms
+
+    if (dir === 1){
+      // Animate left by one card, then move first -> end and snap back
+      colorStrip.style.transition = `transform ${dur}ms ease`;
+      colorStrip.style.transform  = `translateX(-${w}px)`;
+      colorStrip.addEventListener('transitionend', function onEnd(){
+        colorStrip.removeEventListener('transitionend', onEnd);
+        colorStrip.appendChild(colorStrip.firstElementChild);     // rotate
+        colorStrip.style.transition = 'none';
+        colorStrip.style.transform  = 'translateX(0)';       // snap back
+        // force reflow to apply the no-transition state
+        colorStrip.getBoundingClientRect();
+        colorStrip.style.transition = '';                    // restore transitions
+        isAnimating = false;
+      }, { once: true });
+    } else {
+      // Move last -> front without animation, position colorStrip at -w, then animate to 0
+      colorStrip.style.transition = 'none';
+      colorStrip.insertBefore(colorStrip.lastElementChild, colorStrip.firstElementChild);
+      colorStrip.style.transform  = `translateX(-${w}px)`;
+      colorStrip.getBoundingClientRect();                   // reflow
+      colorStrip.style.transition = `transform ${dur}ms ease`;
+      colorStrip.style.transform  = 'translateX(0)';
+      colorStrip.addEventListener('transitionend', () => { isAnimating = false; }, { once: true });
+    }
+  };
+
+  // Recalculate on resize (width is recomputed at click-time too)
+  window.addEventListener('resize', () => {
+    // no persistent offset to fix—each click uses fresh measurements
+  });
+}
+function revealColorOptions() {
+  const options = document.querySelectorAll('.color-option');
+  let delay = 0;
+
+  options.forEach(opt => {
+    opt.style.transitionDelay = delay + "ms";
+    opt.classList.add('in-view');
+    delay += 80; // staggered reveal
+  });
+}
+// Run on scroll + on resize + on first load
+if (colorScroll) {
+  colorScroll.addEventListener('scroll', () => {
+    window.requestAnimationFrame(updateColorReveal);
+  });
+}
+window.addEventListener('resize', updateColorReveal);
+window.setTimeout(updateColorReveal, 0);
+
+  // Resize
+  function resize(){
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth * dpr | 0;
+    const h = canvas.clientHeight * dpr | 0;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w; canvas.height = h;
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    const proj = M4.perspective(45*Math.PI/180, canvas.width/canvas.height, 0.05, 500.0);
+    gl.uniformMatrix4fv(uProjection, false, proj);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let last = performance.now(), acc = 0;
+
+// Override frame to conditionally skip rails/gate in enclosed mode
+frame = function(t){
+  const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
+  const aspect = canvas.width/canvas.height;
+  const proj=M4.perspective(45*Math.PI/180, aspect, 0.01, 100);
+  const ex=target[0]+dist*Math.cos(pitch)*Math.cos(yaw);
+  const ey=target[1]+dist*Math.sin(pitch);
+  const ez=target[2]+dist*Math.cos(pitch)*Math.sin(yaw);
+  const view=M4.lookAt([ex,ey,ez], target, up);
+  gl.uniform3f(uCameraPos, ex, ey, ez);
+
+  // Clear first (sky color is set once at init; see step 3)
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // Set per-frame matrices
+  gl.uniformMatrix4fv(uProjection, false, proj);
+  gl.uniformMatrix4fv(uView, false, view);
+  gl.uniformMatrix4fv(uModel, false, M4.ident());
+  gl.uniform3f(uColor, 0.22, 0.24, 0.26);
+  
+
+  // Draw ground with back-face culling ON (so underside is invisible)
+  gl.enable(gl.CULL_FACE);
+  gl.frontFace(gl.CCW); 
+  gl.cullFace(gl.FRONT); 
+
+  gl.uniformMatrix4fv(uModel, false, M4.ident());
+  gl.uniform3f(uColor, 0.22, 0.24, 0.26);
+
+  gl.drawElements(gl.TRIANGLES, groundCount, INDEX_TYPE, groundStart * BYTES);
+
+  gl.disable(gl.CULL_FACE);  
+
+  const RUBBER = [0.06, 0.06, 0.06];
+  const RIM    = [0.35, 0.37, 0.40];
+  const METAL  = [0.03, 0.03, 0.03];
+  const SPEC_RUBBER = 0.18;
+  const SPEC_RIM    = 0.55;   // you already use 0.55 as default
+
+    // draw gray cube over deck (only in enclosed mode)
+  if (bodyMode === 'enclosed') {
+    const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
+    gl.uniform1i(uUseTex, 0);
+    if (!interiorView) {
+      gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2]);
+      gl.drawElements(gl.TRIANGLES, cubeCount, INDEX_TYPE, cubeStart * BYTES);
+      gl.drawElements(gl.TRIANGLES, noseFillCount, INDEX_TYPE, noseFillStart * BYTES);
+      gl.uniform3f(uColor, 0.90, 0.90, 0.95);
+      gl.drawElements(gl.TRIANGLES, rearBarCount, INDEX_TYPE, rearBarStart * BYTES);
+      // Rear handle tip (black)
+      if (rearTipCount > 0) {
+        gl.uniform3f(uColor, 0.05, 0.05, 0.05);
+        gl.drawElements(gl.TRIANGLES, rearTipCount, INDEX_TYPE, rearTipStart * BYTES);
+      }
+    
+      // --- Rear Trim Top (silver) ---
+      if (rearTrimTopCount > 0) {
+        gl.uniform3f(uColor, 0.92, 0.92, 0.98);
+        gl.drawElements(gl.TRIANGLES, rearTrimTopCount, INDEX_TYPE, rearTrimTopStart * BYTES);
+      }
+      // --- Rear Trim Left (silver) ---
+      if (rearTrimLeftCount > 0) {
+        gl.uniform3f(uColor, 0.92, 0.92, 0.98);
+        gl.drawElements(gl.TRIANGLES, rearTrimLeftCount, INDEX_TYPE, rearTrimLeftStart * BYTES);
+      }
+      // --- Rear Trim Right (silver) ---
+      if (rearTrimRightCount > 0) {
+        gl.uniform3f(uColor, 0.92, 0.92, 0.98);
+        gl.drawElements(gl.TRIANGLES, rearTrimRightCount, INDEX_TYPE, rearTrimRightStart * BYTES);
+      }
+      // --- Rear Trim Bottom (black) ---
+      if (rearTrimBottomCount > 0) {
+        gl.uniform3f(uColor, 0.05, 0.05, 0.05); 
+        gl.drawElements(gl.TRIANGLES, rearTrimBottomCount, INDEX_TYPE, rearTrimBottomStart * BYTES);
+      }
+    }
+    if (innerFrameCount > 0) {
+      const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
+      gl.uniform1i(uUseTex, 0);
+      gl.uniform3f(uColor, 0.6, 0.6, 0.85); 
+      gl.drawElements(gl.TRIANGLES, innerFrameCount, INDEX_TYPE, innerFrameStart * BYTES);
+    }
+    gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2])
+    gl.drawElements(gl.TRIANGLES, noseCount, INDEX_TYPE, noseStart * BYTES);
+    gl.uniform3f(uColor, 0.7, 0.7, 0.7);
+    gl.drawElements(gl.TRIANGLES, roofCount,     INDEX_TYPE, roofStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, noseRoofCount, INDEX_TYPE, noseRoofStart * BYTES);
+    // --- Draw interior floor with Floor.jpg texture ---
+    if (floorCount > 0) {
+      if (floorTexReady) {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, floorTex);
+        gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2]);
+        gl.uniform1i(uUseTex, 1);
+        gl.uniform1f(uTexScale, -1.0);   
+      } else {
+        // fallback while floor texture loads
+        gl.uniform1i(uUseTex, 0);
+        gl.uniform3f(uColor, 0, 0, 0);
+      }
+      gl.drawElements(gl.TRIANGLES, floorCount, INDEX_TYPE, floorStart * BYTES);
+      gl.drawElements(gl.TRIANGLES, noseFillBottomCount, INDEX_TYPE, noseFillBottomStart * BYTES);
+      gl.uniform1i(uUseTex, 0);
+      gl.uniform1f(uTexScale, 1.0);
+      if (innerFloorCount > 0 && floorTexReady) {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, floorTex);
+        gl.uniform1i(uUseTex, 1);
+        gl.uniform1f(uTexScale, -3.0);   // negative = XZ mapping; tweak until tiling looks nice
+        gl.uniform3f(uColor, 1.0, 1.0, 1.0);
+        gl.drawElements(gl.TRIANGLES, innerFloorCount, INDEX_TYPE, innerFloorStart * BYTES);
+        gl.drawElements(gl.TRIANGLES, noseInnerFloorCount, INDEX_TYPE, noseInnerFloorStart * BYTES);
+        gl.drawElements(gl.TRIANGLES, roofInnerCount, INDEX_TYPE, roofInnerStart * BYTES);
+        gl.drawElements(gl.TRIANGLES, noseRoofInnerCount, INDEX_TYPE, noseRoofInnerStart * BYTES);
+        // turn texture off again for the rest of the trailer
+        gl.uniform1i(uUseTex, 0);
+        gl.uniform1f(uTexScale, 1.0);
+      }
+      if (rightWallCount > 0 && floorTexReady) {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, wallTex);
+        gl.uniform1i(uUseTex, 1);
+        gl.uniform1f(uTexScale, -.5);
+        gl.uniform3f(uColor, 1.0, 1.0, 1.0);
+        gl.drawElements(gl.TRIANGLES, rightWallCount, INDEX_TYPE, rightWallStart * BYTES);
+        gl.drawElements(gl.TRIANGLES, vnoseWallCount, INDEX_TYPE, vnoseWallStart * BYTES);
+        // reset
+        gl.uniform1i(uUseTex, 0);
+        gl.uniform1f(uTexScale, 1.0);
+      }
+      if (interiorView === true){
+        gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2])
+        gl.drawElements(gl.TRIANGLES, rightWallOutterCount, INDEX_TYPE, rightWallOutterStart * BYTES);
+       }
+    }
+    if (interiorView === true){
+      gl.uniform3f(uColor, 0.85, 0.85, 0.85); 
+      gl.drawElements(gl.TRIANGLES, innerRoofLineCount, INDEX_TYPE, innerRoofLineStart * BYTES);
+    }
+    // Door panel & frame (light door color)
+    gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2]);
+    gl.drawElements(gl.TRIANGLES, doorPanelCount, INDEX_TYPE, doorPanelStart * BYTES);
+
+    // Draw full-frame silver trim
+    if (fullTrimCount > 0) {
+      gl.uniform3f(uColor, 0.92, 0.92, 0.98);
+      gl.drawElements(gl.TRIANGLES, fullTrimCount, INDEX_TYPE, fullTrimStart * BYTES);
+     }
+   // Draw silver trim around door
+    gl.uniform3f(uColor, 0.92, 0.92, 0.98);
+    gl.drawElements(gl.TRIANGLES, trimCount, INDEX_TYPE, trimStart * BYTES);
+
+   // Side handle tip (black) 
+   if (sideTipCount > 0) { 
+     gl.uniform3f(uColor, 0.05, 0.05, 0.05); 
+     gl.drawElements(gl.TRIANGLES, sideTipCount, INDEX_TYPE, sideTipStart * BYTES);} 
+   // Side handle bar (silver)
+   if (sideBarCount > 0) {
+     gl.uniform3f(uColor, 0.90, 0.90, 0.95);
+     gl.drawElements(gl.TRIANGLES, sideBarCount, INDEX_TYPE, sideBarStart * BYTES);}
+
+    // Stone Guard draw (image-based diamond plate)
+    if (stoneGuardCount > 0) {
+      // If the texture is ready, use it; otherwise fall back to flat color
+      if (diamondTexReady) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, diamondTex);
+      gl.uniform1i(uDiamond, 1);   
+      gl.uniform1i(uUseTex, 1); 
+      gl.uniform1f(uTexScale, 4.0);  
+      // set base color to white so the texture shows true
+      gl.uniform3f(uColor, 1.0, 1.0, 1.0);
+    } else {
+      // fallback: simple aluminum color while image loads
+      gl.uniform1i(uUseTex, 0);
+      gl.uniform3f(uColor, 0.8, 0.8, 0.85);
+    }
+   gl.drawElements(gl.TRIANGLES, stoneGuardCount, INDEX_TYPE, stoneGuardStart * BYTES);
+   // turn texture usage back off so other parts stay as before
+   gl.uniform1i(uUseTex, 0);
+   gl.uniform1i(uDiamond, 0); 
+  
+  // Roof Lines (if enabled)
+  if (bodyMode === 'enclosed' && showRoofLines && roofLineCount > 0) {
+    gl.uniform3f(uColor, 0.85, 0.85, 0.85); // same trim color
+    gl.drawElements(gl.TRIANGLES, roofLineCount, INDEX_TYPE, roofLineStart * BYTES);
+  }
+  // Now draw the ROOF in fixed light gray
+  gl.uniform3f(uColor, ROOF_COLOR[0], ROOF_COLOR[1], ROOF_COLOR[2]);
+  gl.drawElements(gl.TRIANGLES, roofCount, INDEX_TYPE, roofStart * BYTES)
+  }
+ } 
+
+  // The remainder of the frame code (axles, fenders, jack, HUD, etc.) follows from the original block below ↓
+  // Draw FIRST AXLE conditionally: single (60%) vs tandem (55%)
+  if (axleMode === 'single') {
+    // axle shaft (metal)
+    gl.uniform3f(uColor, ...METAL);
+    gl.uniform1f(uSpecStrength, 0.55);
+    gl.drawElements(gl.TRIANGLES, axleSingleShaftCount, INDEX_TYPE, axleSingleShaftStart * BYTES);
+
+    // tires (rubber)
+    gl.uniform3f(uColor, ...RUBBER);
+    gl.uniform1f(uSpecStrength, SPEC_RUBBER);
+    gl.drawElements(gl.TRIANGLES, tireSingleRightCount, INDEX_TYPE, tireSingleRightStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, tireSingleLeftCount,  INDEX_TYPE, tireSingleLeftStart * BYTES);
+
+    // rims (glossy)
+    gl.uniform3f(uColor, ...RIM);
+    gl.uniform1f(uSpecStrength, SPEC_RIM);
+    gl.drawElements(gl.TRIANGLES, rimSingleRightCount, INDEX_TYPE, rimSingleRightStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, rimSingleLeftCount,  INDEX_TYPE, rimSingleLeftStart * BYTES);
+  } else { // axleMode === 'tandem'
+    // shafts
+    gl.uniform3f(uColor, ...METAL);
+    gl.uniform1f(uSpecStrength, 0.55);
+    gl.drawElements(gl.TRIANGLES, axleFrontTandemShaftCount, INDEX_TYPE, axleFrontTandemShaftStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, axleRearTandemShaftCount,  INDEX_TYPE, axleRearTandemShaftStart * BYTES);
+
+    // tires
+    gl.uniform3f(uColor, ...RUBBER);
+    gl.uniform1f(uSpecStrength, SPEC_RUBBER);
+    gl.drawElements(gl.TRIANGLES, tireFrontRightCount, INDEX_TYPE, tireFrontRightStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, tireFrontLeftCount,  INDEX_TYPE, tireFrontLeftStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, tireRearRightCount,  INDEX_TYPE, tireRearRightStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, tireRearLeftCount,   INDEX_TYPE, tireRearLeftStart * BYTES);
+
+    // rims
+    gl.uniform3f(uColor, ...RIM);
+    gl.uniform1f(uSpecStrength, SPEC_RIM);
+    gl.drawElements(gl.TRIANGLES, rimFrontRightCount, INDEX_TYPE, rimFrontRightStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, rimFrontLeftCount,  INDEX_TYPE, rimFrontLeftStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, rimRearRightCount,  INDEX_TYPE, rimRearRightStart * BYTES);
+    gl.drawElements(gl.TRIANGLES, rimRearLeftCount,   INDEX_TYPE, rimRearLeftStart * BYTES);
+  } 
+
+  if (axleMode === 'single') {
+    gl.uniform3f(uColor, 0.03, 0.03, 0.03);
+    gl.drawElements(gl.TRIANGLES, singleFenderCount, INDEX_TYPE, singleFenderStart * BYTES);
+  }
+
+  gl.uniform3f(uColor, 0.03, 0.03, 0.03);
+  gl.drawElements(gl.TRIANGLES, metalAfterFenderBeforeTandemFrontCount, INDEX_TYPE, metalAfterFenderBeforeTandemFrontStart * BYTES);
+  gl.drawElements(gl.TRIANGLES, metalBetweenTandemFrontAndSecondAxleCount, INDEX_TYPE, metalBetweenTandemFrontAndSecondAxleStart * BYTES);
+
+  gl.uniform3f(uColor, 0.03, 0.03, 0.03);
+  gl.drawElements(gl.TRIANGLES, metalSeg2Count, INDEX_TYPE, metalSeg2Start * BYTES);
+
+  // Unified tandem fender (one piece) along X, spanning front axle → rear axle
+  function addUnifiedTandemFenderSide(axleXFront, axleXRear, z, radius, width, yTop, seg=160){
+    const innerZ = z - width/2, outerZ = z + width/2;
+    const cx0 = axleXFront, cx1 = axleXRear;
+    const yOffset = yTop - radius;
+
+    // use a soft "max" to blend the two arches + flat top
+    function archY(x){
+      const a0 = Math.acos(Math.max(-1, Math.min(1, (x-cx0)/radius)));  // 0..π
+      const a1 = Math.acos(Math.max(-1, Math.min(1, (x-cx1)/radius)));
+      const y0 = Math.sin(a0) * radius + yOffset;
+      const y1 = Math.sin(a1) * radius + yOffset;
+      // flat bridge across the midpoint (between peaks)
+      const flat = yTop;
+      // smooth max of (flat, y0, y1)
+      return Math.min(yTop, m01);
+    }
+
+    for (let i = 0; i < seg; i++){
+      const t0 = i/seg, t1 = (i+1)/seg;
+      const x0 = cx0 + (cx1-cx0)*t0;
+      const x1 = cx0 + (cx1-cx0)*t1;
+      const y0 = archY(x0), y1 = archY(x1);
+
+      const q0 = [x0, y0 - 0.05, innerZ];
+      const q1 = [x0, y0 - 0.05, outerZ];
+      const q2 = [x1, y1 - 0.05, outerZ];
+      const q3 = [x1, y1 - 0.05, innerZ];
+
+      // face normal
+      const ux=q1[0]-q0[0], uy=q1[1]-q0[1], uz=q1[2]-q0[2];
+      const vx=q3[0]-q0[0], vy=q3[1]-q0[1], vz=q3[2]-q0[2];
+      let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+      const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+
+      pushQuad(q0,q1,q2,q3,[nx,ny,nz]);
+    }
+  }
+
+  if (axleMode === 'tandem') {
+    const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
+    gl.uniform3f(uColor, 0, 0, 0); 
+    gl.drawElements(gl.TRIANGLES, sideFlatsCount, INDEX_TYPE, sideFlatsStart * BYTES);
+  }
+
+  gl.uniform3f(uColor, 0.75, 0.75, 0.75);
+  gl.drawElements(gl.TRIANGLES, footIndexCount, INDEX_TYPE, footIndexStart * BYTES);
+
+  const dt = t - last; last = t; acc += dt;
+  if (acc > 500) {
+    const err = gl.getError();
+    const ok = err === gl.NO_ERROR;
+    document.getElementById('hud').textContent = `FPS: ${Math.round(1000/dt)}${ok?'':'  | WebGL ERR'}`;
+    acc = 0;
+
+  }
+  requestAnimationFrame(frame); 
+};
+  resize();
+  requestAnimationFrame(frame);
+
+  </script>
+</body>
+</html>
