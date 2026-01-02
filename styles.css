@@ -33,4 +33,7 @@ canvas:active { cursor: grabbing; }
 .config-panel {display: flex; flex-direction: column;}
 .config-panel-body {flex: 1; overflow: auto;}
 .axle-warning {margin-top: 8px; font-size: 1.9rem; color: #b45309; background: #fff7ed; border: 1px solid #fed7aa; padding: 6px 10px; border-radius: 6px;}
-.feature_s .feature_e .feature_i {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
+.feature_s {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
+.feature_s select {max-width: 6px;}
+.feature_i {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
+.feature_e {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
