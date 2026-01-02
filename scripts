@@ -2102,8 +2102,22 @@ document.getElementById("next").addEventListener("click", (e) => {
   }
 
   if (currentPanel === "color") {
-    currentPanel = "features";
-    showPanel("features");
+    currentPanel = "feature_s";
+    showPanel("feature_s");
+    //if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "feature_s") {
+    currentPanel = "feature_e";
+    showPanel("feature_e");
+    //if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "feature_e") {
+    currentPanel = "feature_i";
+    showPanel("feature_i");
     //if (typeof revealColorOptions === "function") revealColorOptions();
     return;
   }
@@ -2111,7 +2125,21 @@ document.getElementById("next").addEventListener("click", (e) => {
 document.getElementById("back").addEventListener("click", (e) => {
   e.preventDefault();
 
-  if (currentPanel === "features") {
+  if (currentPanel === "feature_i") {
+    currentPanel = "feature_e";
+    showPanel("feature_e");
+    if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "feature_e") {
+    currentPanel = "feature_s";
+    showPanel("feature_s");
+    if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "feature_s") {
     currentPanel = "color";
     showPanel("color");
     if (typeof revealColorOptions === "function") revealColorOptions();
