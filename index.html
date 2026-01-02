@@ -7,113 +7,156 @@
 	<link rel="stylesheet" href="styles" />
 </head>
 <body>
-  <div id="app">
-    <header>
-      <strong>Utility Trailer 3D</strong>
-      <span class="pill">LMB: orbit</span>
-      <span class="pill">Wheel/Pinch: zoom</span>
-      <span class="pill">R: reset</span>
-      <button id="btnReset" class="btn" title="Reset view">Reset</button>
-      <!-- Buttons for debug -->
-      <button id="btnAxle" class="btn" title="Toggle axles" hidden>Single Axle</button>
-      <!-- button class="btn" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">Toggle Roof Lines</button-->
-      <button id="btnInterior" class="btn" title="Toggle interior view">Interior View</button>
-    </header>
-<main class="main-pane" style="display:flex; flex-direction:column; align-items:center; padding:1rem 0; overflow:auto;">
-  <!-- 3D Viewer -->
-  <div class="viewer-panel" style="position:relative; width:100%; max-width:1200px; aspect-ratio:16/9; overflow:hidden; border-radius:.5rem;">
-    <canvas id="gl" aria-label="3D canvas" role="img"></canvas>
-    <div class="hud" id="hud">FPS: –</div>
-  </div>
-    <!-- Size panel -->
-  <section class="config-panel" style="width:100%; max-width:1200px; margin-top:1rem; background:#f8f8fb; border-radius:.75rem .75rem 0 0; border:1px solid #d0d4e0; border-bottom:none; box-shadow:0 8px 20px rgba(0,0,0,.18); height:270px; min-height:270px; max-height:270px; display:flex; flex-direction:column;">
-    <div class="config-panel-body" data-tab-body="width" data-display="flex" style="position:relative;">
-      <div class="option-row"> 
-        <div class="option-col">
-          <label for="width-options" style="color: black; font-size: 2.5rem;">Pick Width</label>
-          <select id="width-options" name="width" style="color: white; background: black;font-size: 2.5rem;">
-            <option value="72">6' (72")</option>
-            <option value="84">7' (84")</option>
-            <option value="102">8'6" (102")</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="config-panel-body" data-tab-body="length" data-display="flex" style="position:relative; display: none;">
-      <div class="option-row"> 
-        <div class="option-col">
-          <label for = "length-options" style="color: black; font-size: 2.5rem;">Pick Length</label>
-          <select id="length-options" name="length" style="color: white; background: black; font-size: 2.5rem;">
-            <option value="10">10'</option>
-            <option value="12">12'</option>
-            <option value="14">14'</option>
-            <option value="16">16'</option>
-            <option value="18">18'</option>
-            <option value="20">20'</option>
-            <option value="22">22'</option>
-            <option value="24">24'</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="config-panel-body" data-tab-body="size_axle" data-display="flex" style="position:relative; display:none;"> 
-      <div id="axle-form" class="axle-form">
-        <div class="axle">
-          <button id="btnAxle" class="option-card axle-option" data-axle="single">Single Axle<img src="single.JPG" alt="Single Axle" style="width:100%; display:block;"></button>
-          <button id="btnAxle" class="option-card axle-option" data-axle="tandem">Tandem Axle<img src="tandem.JPG" alt="Tandem Axle" style="width:100%; display:block;"></button>
-          <div id="axle-warning" class="axle-warning" hidden>
-            ⚠️ 10' trailers are available in single axle only.
-          </div>
-        </div>
-      </div> 
-    </div>
-    <!-- Color panel -->
-    <div class="config-panel-body" data-tab-body="color" style="position:relative; display:none">
-      <button class="scroll-arrow left" data-scroll="left">&#10094;</button>
-      <div class="color-scroll">
-        <div class="color-strip" id="color-strip">
-          <button class="option-card color-option is-selected" data-color="silver">Silver<img src="silver.JPG" alt="Silver" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="black">Black<img src="black.JPG" alt="black" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="charcoal">Charcoal<img src="charcoal.JPG" alt="Charcoal" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="white">White<img src="white.JPG" alt="White" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="green">Green<img src="green.JPG" alt="Green" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="blue">Blue<img src="blue.JPG" alt="Blue" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="red">Red<img src="red.JPG" alt="Red" style="width:100%; display:block;"></button>
-          <button class="option-card color-option" data-color="yellow">Yellow<img src="yellow.JPG" alt="Yellow" style="width:100%; display:block;"></button>
-        </div>
-      </div>
-      <!-- Right Arrow -->
-      <button class="scroll-arrow right" data-scroll="right">&#10095;</button>
-    </div>
-    <!-- Features panel -->
-    <div class="config-panel-body" data-tab-body="features" style="display:none; color: black;">
-      <p>Choose add-on features (we will wire these in next):</p>
-      <div class="features">
-      <label><input type="checkbox" name="feature_one_piece" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">One Piece Aluminum Roof</label>
-      <label><input type="checkbox" name="feature_spare_outside"> Spare Tire Mount(Outside)</label>
-      <label><input type="checkbox" name="feature_spare_inside"> Spare Tire Mount(Inside)</label>
-      <label><input type="checkbox" name="feature_1">Place holder 1</label>
-      <label><input type="checkbox" name="feature_2">Place holder 2</label>
-      <label><input type="checkbox" name="feature_3">Place holder 3</label>
-      <label><input type="checkbox" name="feature_4">Place holder 4</label>
-      <label><input type="checkbox" name="feature_5">Place holder 5</label>
-      <label><input type="checkbox" name="feature_6">Place holder 6</label>
-      <label><input type="checkbox" name="feature_7">Place holder 7</label>
-      <label><input type="checkbox" name="feature_8">Place holder 8</label>
-      <label><input type="checkbox" name="feature_9">Place holder 9</label>
-      <label><input type="checkbox" name="feature_10">Place holder 10</label>
-      <label><input type="checkbox" name="feature_11">Place holder 11</label>
-      <label><input type="checkbox" name="feature_12">Place holder 12</label>
-      <label><input type="checkbox" name="feature_13">Place holder 13</label>
-      </div>
-    </div>
-    <div class="panel-footer">
-      <button id="back" class="btn">Back</button>
-      <button id="restart" class="btn">Restart</button>
-      <button id="next" class="btn">Next</button>
-    </div>
-  </section></div>
-</main>
-<script src="scripts"></script>
+	<div id="app">
+		<header>
+			<strong>Utility Trailer 3D</strong>
+			<span class="pill">LMB: orbit</span>
+            <span class="pill">Wheel/Pinch: zoom</span>
+            <span class="pill">R: reset</span>
+			<button id="btnReset" class="btn" title="Reset view">Reset</button>
+            <!-- Buttons for debug -->
+            <button id="btnAxle" class="btn" title="Toggle axles" hidden>Single Axle</button>
+            <!-- button class="btn" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">Toggle Roof Lines</button-->
+            <button id="btnInterior" class="btn" title="Toggle interior view">Interior View</button>
+		</header>
+		<main class="main-pane" style="display:flex; flex-direction:column; align-items:center; padding:1rem 0; overflow:auto;">
+			<!-- 3D Viewer -->
+			<div class="viewer-panel" style="position:relative; width:100%; max-width:1200px; aspect-ratio:16/9; overflow:hidden; border-radius:.5rem;">
+				<canvas id="gl" aria-label="3D canvas" role="img"></canvas>
+				<div class="hud" id="hud">FPS: –</div>
+			</div>
+    		<!-- Size panel -->
+			<section class="config-panel" style="width:100%; max-width:1200px; margin-top:1rem; background:#f8f8fb; border-radius:.75rem .75rem 0 0; border:1px solid #d0d4e0; border-bottom:none; box-shadow:0 8px 20px rgba(0,0,0,.18); height:270px; min-height:270px; max-height:270px; display:flex; flex-direction:column;">
+				<div class="config-panel-body" data-tab-body="width" data-display="flex" style="position:relative;">
+	      			<div class="option-row"> 
+    	    			<div class="option-col">
+        	  				<label for="width-options" style="color: black; font-size: 2.5rem;">Pick Width</label>
+          					<select id="width-options" name="width" style="color: white; background: black;font-size: 2.5rem;">
+								<option value="72">6' (72")</option>
+            					<option value="84">7' (84")</option>
+            					<option value="102">8'6" (102")</option>
+          					</select>
+						</div>
+      				</div>
+				</div>
+				<div class="config-panel-body" data-tab-body="length" data-display="flex" style="position:relative; display: none;">
+    	  			<div class="option-row"> 
+        				<div class="option-col">
+          					<label for = "length-options" style="color: black; font-size: 2.5rem;">Pick Length</label>
+          					<select id="length-options" name="length" style="color: white; background: black; font-size: 2.5rem;">
+            					<option value="10">10'</option>
+            					<option value="12">12'</option>
+	            				<option value="14">14'</option>
+	    	        			<option value="16">16'</option>
+    	    	    			<option value="18">18'</option>
+        	    				<option value="20">20'</option>
+            					<option value="22">22'</option>
+            					<option value="24">24'</option>
+          					</select>
+						</div>
+					</div>
+    			</div>
+				<div class="config-panel-body" data-tab-body="size_axle" data-display="flex" style="position:relative; display:none;"> 
+      				<div id="axle-form" class="axle-form">
+        				<div class="axle">
+          					<button id="btnAxle" class="option-card axle-option" data-axle="single">Single Axle<img src="single.JPG" alt="Single Axle" style="width:100%; display:block;"></button>
+          					<button id="btnAxle" class="option-card axle-option" data-axle="tandem">Tandem Axle<img src="tandem.JPG" alt="Tandem Axle" style="width:100%; display:block;"></button>
+          					<div id="axle-warning" class="axle-warning" hidden>
+            					⚠️ 10' trailers are available in single axle only.
+          					</div>
+        				</div>
+      				</div> 
+    			</div>
+    			<!-- Color panel -->
+    			<div class="config-panel-body" data-tab-body="color" style="position:relative; display:none">
+      				<button class="scroll-arrow left" data-scroll="left">&#10094;</button>
+      				<div class="color-scroll">
+        				<div class="color-strip" id="color-strip">
+          					<button class="option-card color-option is-selected" data-color="silver">Silver<img src="silver.JPG" alt="Silver" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="black">Black<img src="black.JPG" alt="black" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="charcoal">Charcoal<img src="charcoal.JPG" alt="Charcoal" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="white">White<img src="white.JPG" alt="White" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="green">Green<img src="green.JPG" alt="Green" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="blue">Blue<img src="blue.JPG" alt="Blue" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="red">Red<img src="red.JPG" alt="Red" style="width:100%; display:block;"></button>
+          					<button class="option-card color-option" data-color="yellow">Yellow<img src="yellow.JPG" alt="Yellow" style="width:100%; display:block;"></button>
+        				</div>
+      				</div>
+      				<!-- Right Arrow -->
+      				<button class="scroll-arrow right" data-scroll="right">&#10095;</button>
+    			</div>
+    			<!-- Feature panels -->
+				<div class="config-panel-body" data-tab-body="feature-s" style="display:none; color: black;">
+      				<p>Structure Features</p>
+      				<div class="features">
+						<select id="add_height" name="add_height" style="color: white; background: black; font-size: 2.5rem;">
+      						<option value="none">None</option>
+							<option value="6_a">6" Additional Height</option>
+							<option value="12_a">12" Additional Height</option>
+							<option value="18_a">18" Additional Height</option>
+							<option value="24_a">24" Additional Height</option>
+							<option value="30_a">30" Additional Height</option>
+							<option value="36_a">36" Additional Height</option>
+							<option value="42_a">42" Additional Height</option>
+						</select>
+						<select id="slant_on_v" name="slant_on_v" style="color: white; background: black; font-size: 2.5rem;">
+      						<option value="none">None</option>
+							<option value="6_v">6" Slant</option>
+							<option value="12_v">12" Slant</option>
+						</select>
+      					<label><input type="checkbox" name="feature_13">Place holder 13</label>
+      				</div>
+    			</div>
+    			<div class="config-panel-body" data-tab-body="features" style="display:none; color: black;">
+      				<p>Choose add-on features (we will wire these in next):</p>
+      				<div class="features">
+      					<label><input type="checkbox" name="feature_one_piece" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">One Piece Aluminum Roof</label>
+      					<label><input type="checkbox" name="feature_spare_outside"> Spare Tire Mount(Outside)</label>
+      					<label><input type="checkbox" name="feature_spare_inside"> Spare Tire Mount(Inside)</label>
+      					<label><input type="checkbox" name="feature_1">Place holder 1</label>
+      					<label><input type="checkbox" name="feature_2">Place holder 2</label>
+      					<label><input type="checkbox" name="feature_3">Place holder 3</label>
+      					<label><input type="checkbox" name="feature_4">Place holder 4</label>
+      					<label><input type="checkbox" name="feature_5">Place holder 5</label>
+      					<label><input type="checkbox" name="feature_6">Place holder 6</label>
+      					<label><input type="checkbox" name="feature_7">Place holder 7</label>
+      					<label><input type="checkbox" name="feature_8">Place holder 8</label>
+      					<label><input type="checkbox" name="feature_9">Place holder 9</label>
+      					<label><input type="checkbox" name="feature_10">Place holder 10</label>
+      					<label><input type="checkbox" name="feature_11">Place holder 11</label>
+      					<label><input type="checkbox" name="feature_12">Place holder 12</label>
+      					<label><input type="checkbox" name="feature_13">Place holder 13</label>
+      				</div>
+    			</div>
+				<div class="config-panel-body" data-tab-body="features" style="display:none; color: black;">
+      			<p>Choose add-on features (we will wire these in next):</p>
+      				<div class="features">
+      					<label><input type="checkbox" name="feature_one_piece" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">One Piece Aluminum Roof</label>
+      					<label><input type="checkbox" name="feature_spare_outside"> Spare Tire Mount(Outside)</label>
+      					<label><input type="checkbox" name="feature_spare_inside"> Spare Tire Mount(Inside)</label>
+      					<label><input type="checkbox" name="feature_1">Place holder 1</label>
+      					<label><input type="checkbox" name="feature_2">Place holder 2</label>
+      					<label><input type="checkbox" name="feature_3">Place holder 3</label>
+      					<label><input type="checkbox" name="feature_4">Place holder 4</label>
+      					<label><input type="checkbox" name="feature_5">Place holder 5</label>
+      					<label><input type="checkbox" name="feature_6">Place holder 6</label>
+      					<label><input type="checkbox" name="feature_7">Place holder 7</label>
+      					<label><input type="checkbox" name="feature_8">Place holder 8</label>
+      					<label><input type="checkbox" name="feature_9">Place holder 9</label>
+      					<label><input type="checkbox" name="feature_10">Place holder 10</label>
+      					<label><input type="checkbox" name="feature_11">Place holder 11</label>
+      					<label><input type="checkbox" name="feature_12">Place holder 12</label>
+      					<label><input type="checkbox" name="feature_13">Place holder 13</label>
+      				</div>
+    			</div>
+    			<div class="panel-footer">
+      				<button id="back" class="btn">Back</button>
+      				<button id="restart" class="btn">Restart</button>
+      				<button id="next" class="btn">Next</button>
+    			</div>
+			</section>
+		</main>
+	</div>
+	<script src="scripts"></script>
 </body>
 </html>
