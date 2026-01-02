@@ -1,0 +1,36 @@
+html, body {height: 100%; margin: 0; background:#0b0d10; background: linear-gradient(#bcd8f6, #92a4c2 60%, #6e7b8b); color:#fff }
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; }
+header { padding: .6rem .9rem; border-bottom: 1px solid #1b2533; display:flex; gap:.75rem; align-items:center; }
+.pill { font-size: .85rem; background:#121926; border:1px solid #223048; padding:.25rem .5rem; border-radius:999px; }
+canvas { width: 100%; height: 100%; display: block; cursor: grab; background:transparent;}
+canvas:active { cursor: grabbing; }
+.hud { position: absolute; bottom:.75rem; left:.75rem; background:rgba(0,0,0,.45); backdrop-filter: blur(6px); border:1px solid #223048; border-radius: .6rem; padding:.5rem .6rem; font-size:.85rem; }
+.btn { user-select:none; padding:.25rem .55rem; border-radius:.5rem; border:1px solid #223048; background:#121926; color:#e6eef8; }
+.btn:hover { filter: brightness(1.1); }
+.config-tab.disabled {opacity: .35; pointer-events: none; cursor: not-allowed;}
+.config-panel-body::-webkit-scrollbar {height: 8px;}
+.config-panel-body::-webkit-scrollbar-thumb {background: #c4c7d0; border-radius: 4px;}
+.color-scroll {overflow: hidden; scroll-behavior: smooth; position: relative; height: 220px; padding: .25rem 2.5rem;}
+.color-strip {display: flex; gap: .75rem; padding:1rem 1.25rem 1.25rem; transition: transform 0.35s ease; transform: translateX(0px);}
+.scroll-arrow {position: absolute; top: 50%; transform: translateY(-50%); height: 40px; width: 40px; border-radius: 50%; border: none; background: rgba(0,0,0,0.4); color: white; font-size: 22px; cursor: pointer; z-index: 10;}
+.scroll-arrow.left {left: 5px;}
+.scroll-arrow.right {right: 5px;}
+.scroll-arrow:hover {background: rgba(0,0,0,0.7);}
+.color-option {flex: 0 0 calc((100% - (4 * .75rem)) / 5); max-width: none; opacity: 0; transform: translateX(24px); transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+               text-align:left; border-radius:.6rem; border:2px solid #ff6a00; padding:.4rem; background:#ffffff; cursor:pointer; display:flex; flex-direction:column; gap:.4rem;}
+.color-option.from-left {transform: translateX(-24px);}
+.color-option.from-right {transform: translateX(24px);}
+.color-option.in-view {opacity: 1; transform: translateX(0);}
+.axle{display: flex;  gap: .75rem;  padding: 1rem 1.25rem;  height: 100%;  box-sizing: border-box;  align-items: stretch;}
+.axle .axle-option{width: 260px; height: 200px; flex: 0 0 auto; box-sizing: border-box; text-align: left; border-radius: .6rem; border: 2px solid #ff6a00; padding: .4rem; background: #ffffff; cursor: pointer; display: flex; flex-direction: column; gap: .4rem;}
+.axle .axle-option img{width: 100%; height: 100%; object-fit: contain; display: block;}
+.axle .axle-option.is-disabled{opacity: .35; pointer-events: none; cursor: not-allowed;}
+.option-row {display: flex; gap: 16px; align-items: flex-start;}
+.option-col {display: flex; gap: 16px; padding: 6px}
+.option-col label {font-size: 14px; margin-bottom: 4px; font-weight: 500;}
+.option-col select {padding: 6px 10px; font-size: 14px;}
+.panel-footer {display: flex; justify-content: space-between; padding: 12px; border-top: 1px solid #d0d4e0; background: #f8f8fb;}
+.config-panel {display: flex; flex-direction: column;}
+.config-panel-body {flex: 1; overflow: auto;}
+.axle-warning {margin-top: 8px; font-size: 1.9rem; color: #b45309; background: #fff7ed; border: 1px solid #fed7aa; padding: 6px 10px; border-radius: 6px;}
+.features {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
