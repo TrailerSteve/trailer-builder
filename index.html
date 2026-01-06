@@ -87,11 +87,12 @@
     			</div>
     			<!-- Feature panels -->
 				<div class="config-panel-body" data-tab-body="feature_s" style="display:none; color: black;">
-      				<p>Structure Features</p>
+      				<h3>Structure Features</h3>
       				<div class="feature_s">
-						<label>Additional Height</label>
+					<div>
+						<label>Additional Height</label><br>
 						<select id="add_height" name="add_height">
-      						<option value="none">None</option>
+      							<option value="none">None</option>
 							<option value="6_a">6" Additional Height</option>
 							<option value="12_a">12" Additional Height</option>
 							<option value="18_a">18" Additional Height</option>
@@ -100,13 +101,122 @@
 							<option value="36_a">36" Additional Height</option>
 							<option value="42_a">42" Additional Height</option>
 						</select>
-						<label>Slant On V-Nose</label>
-						<select id="slant_on_v" name="slant_on_v" style="color: white; background: black;">
-      						<option value="none">None</option>
+					</div>
+					<div>
+						<label>Slant On V-Nose</label><br>
+						<select id="slant_on_v" name="slant_on_v">
+      						        <option value="none">No Slant</option>
 							<option value="6_v">6" Slant</option>
 							<option value="12_v">12" Slant</option>
 						</select>
-      					<label><input type="checkbox" name="feature_13">Place holder 13</label>
+					</div>
+					<div>
+						<label>Rear Wing</label><br>
+						<select id="rear_wing" name="rear_wing">
+      						        <option value="none">No Rear Wing</option>
+							<option value="standard_w">Standard Rear Wing</option>
+							<option value="wing_light">Wing w/Rec Lights and Switch</option>
+						</select>
+					</div>
+					<div>
+						<label>Recessed Show Box</label><br>
+						<select id="show_box" name="show_box">
+      						        <option value="none">No Show Box</option>
+							<option value="3x4x12">3' X 4' X 12" Recessed Show Box</option>
+							<option value="3x6x12">3' X 6' X 12" Recessed Show Box</option>
+						</select>
+					</div>
+					<div>
+						<label>Upgraded Tubing on Frame</label><br>
+						<select id="tubing_frame" name="tubing_frame">
+      						        <option value="none">No Upgraded Tubing</option>
+							<option value="2x4_tubing">Upgrade to 2" X 4" Tube</option>
+							<option value="2x6_tubing">Upgrade to 2" X 6" Tube</option>
+							<option value="2x8_tubing">Upgrade to 2" X 8" Tube</option>
+							<option value="8_i_tubing">Upgrade to 8" I-Beam</option>
+						</select>
+					</div>
+					<div>
+						<label>Upgraded OC for Flooring</label><br>
+						<select id="oc_flooring" name="tubing_frame">
+      						        <option value="none">Standard OC Floor</option>
+							<option value="12_floor">12" OC Floor</option>
+							<option value="16_floor">16" OC Floor</option>
+						</select>
+					</div>
+					<div>
+						<label>Upgraded OC for Walls</label><br>
+						<select id="oc_flooring" name="tubing_frame">
+      						        <option value="none">Standard OC Walls</option>
+							<option value="12_wall">12" OC Walls</option>
+							<option value="16_wall">16" OC Walls</option>
+						</select>
+					</div>
+					<div>
+						<label>Upgraded OC for Roof</label><br>
+						<select id="oc_flooring" name="tubing_frame">
+      						        <option value="none">Standard OC Roof</option>
+							<option value="12_roof">12" OC Roof</option>
+							<option value="16_roof">16" OC Roof</option>
+						</select>
+					</div>
+					<div>
+						<label>Extended Tongue</label><br>
+						<select id="ex_tongue" name="ex_tongue">
+      						        <option value="none">Standard Tongue</option>
+							<option value="60_tongue">Extende Tongue 60" From Header</option>
+							<option value="101_tongue">Extende Tongue 101" From Header</option>
+							<option value="145_tongue">Extende Tongue 145" From Header</option>
+						</select><br>
+	      					<label><input type="checkbox" name="extende_v">Extended V-Nose Compartment</label>
+					</div>
+					<div>
+						<label>Stepwell</label><br>
+						<select id="stepwell" name="stepwell">
+      						        <option value="none">No Step</option>
+							<option value="step">Recessed Step(Ext)</option>
+						</select>
+					</div>
+					<div>
+						<label>Propane Cage or Box</label><br>
+						<select id="propane" name="propane">
+      						        <option value="none">No Propane Cage</option>
+							<option value="propane_box">Enclosed Propane Box w/Door</option>
+							<option value="propane_cage">Propane Cage</option>
+						</select>
+					</div>
+					<div>
+						<label><input type="checkbox" name="partition" style="padding: 1px">Partition Wall</label><br>
+						<label>Partion Door</label><br>
+						<select id="p_door" name="p_door">
+      						        <option value="none">No Door</option>
+							<option value="6x6_door">6" X 6" Access Door</option>
+							<option value="2x2_door">2' X 2' Access Door</option>
+							<option value="3x3_door">3' X 3' Access Door</option>
+						</select>
+					</div>
+					<div>
+						<label>Ramp in V-nose</label><br>
+						<select id="ramp_v" name="ramp_v">
+      						        <option value="none">None</option>
+							<option value="3_ramp">3'(36")</option>
+							<option value="4_ramp">4'(48")</option>
+							<option value="5_ramp">5'(60")</option>
+						</select><br>
+						<label style="color: red; font-size: 12px; padding: none;">Requires 101" Extended Tongue, <br>2ft V-Nose Extension, And Electric Jack</lable>
+					</div>
+					<div>
+						<label><input type="checkbox" name="e_track">E-Track</label><br>
+					</div>
+					<div>
+						<label><input type="checkbox" name="low_pro">Low Profile Body</label>
+					</div>
+					<div>
+						<label><input type="checkbox" name="wall_straps">Wall Straps (over 88")</label>
+					</div>
+					<div>
+						<label><input type="checkbox" name="beavertail">Beavertail</label>
+					</div>
       				</div>
     			</div>
     			<div class="config-panel-body" data-tab-body="feature_e" style="display:none; color: black;">
