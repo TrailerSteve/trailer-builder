@@ -218,6 +218,7 @@ let diamondTexReady = false;
 let floorTexReady = false;
 let interiorView = false;
 let showRoofLines = true;
+let structureView = false;
 const DEBUG = true;
 const diamondTex = loadTexture("diamond-plate.png");
 const floorTex    = loadTexture("Floor.jpg");
@@ -1234,54 +1235,11 @@ function addBodyTrim() {
   addRectBeam([bx1, by0, leftZ - .02],  [bx1, by0, rightZ + .02],  W, W);
   addRectBeam([bx1, by0, rightZ], [bx0, by0, rightZ],  W, W);
   addRectBeam([bx0, by0, leftZ],  [bx1, by0, leftZ],   W, W);
+  // V-nose
+  addRectBeam([bx0, by0, rightZ], [noseApexX - .01, -0.05, -.01], W, W);
+  addRectBeam([noseApexX - .01, by0, .01],[bx0, -0.045, leftZ],   W, W);
 }
-
-  trimCount = idx.length - trimStart;
-
-// Roof Line Geometry (like trim)
-
-roofLineStart = idx.length;
-
-const roofY = cubeCenterY + cubeH/2 + 0.001;  
-const startX = frontX;
-const endX   = cubeCenterX + cubeL/2;
-
-const segments = 4; 
-const spacing = (endX - startX) / segments;
-
-const lineW = trimW;  // same thickness as trim
-const lineH = trimW;  // same height as trim
-
-for (let i = 0; i < segments; i++) {
-    const x = startX + spacing * i;
-
-    addRectBeam(
-        [x, roofY, leftZ],
-        [x, roofY, rightZ],
-        lineW,
-        lineH
-    );
-}
-roofLineCount = idx.length - roofLineStart;
-
-// inside roof rails
-  innerRoofLineStart = idx.length;
-
-const innerLineH = trimW/2;
-
-for (let i = 0; i < segments; i++) {
-    const x = startX + spacing * i;
-
-    addRectBeam(
-        [x, roofY - .01, leftZ],
-        [x, roofY - .01, rightZ],
-        lineW,
-        innerLineH
-    );
-}
-
-innerRoofLineCount = idx.length - innerRoofLineStart;
-
+ trimCount = idx.length - trimStart;
 
 
   // --- Rear Door (back wall) — Enclosed mode ---
@@ -1517,6 +1475,109 @@ innerRoofLineCount = idx.length - innerRoofLineStart;
   addBox(-deckL/2, railH/2, 0, railT, railH, railT);
   // stanchions (posts)
   const postN=5; for(let i=0;i<postN;i++){ const x=-deckL/2 + i*(deckL/(postN-1)); addBox(x, railH/2, -deckW/2, railT, railH, railT); addBox(x, railH/2, deckW/2, railT, railH, railT); }
+
+
+// --- Frame crossmembers (floor OC) ---
+// 24" OC standard, tandem axle uses 16" OC
+const crossMemberStart = idx.length;
+const OC_24 = 0.6096; // meters
+const OC_16 = 0.4064; // meters
+let crossOC = 0
+
+if (axleMode === 'single') {
+   crossOC = OC_24
+   console.log("axleMode:", axleMode, "crossOC:", crossOC);
+   }else{
+   crossOC = OC_16
+   console.log("axleMode:", axleMode, "crossOC:", crossOC);
+   }
+
+// beam size (tweak to taste)
+const crossX = railT;    
+const crossY = railT;     
+const crossZ =  deckW;    
+
+// place them slightly under deck surface so they look like frame members
+const crossYPos =  by0 - 0.009; 
+
+// span along X (front wall to rear wall)
+const xMin = frontX + crossX * 0.5;
+const xMax = bx1    - crossX * 0.5;
+
+// place members every OC, and FORCE one at the rear
+const xs = [];
+for (let x = xMin; x <= xMax + 1e-6; x += crossOC) xs.push(x);
+if (Math.abs(xs[xs.length - 1] - xMax) > (crossOC * 0.25)) xs.push(xMax);
+
+for (const x of xs) {
+  addBox(x, crossYPos, 0, crossX, crossY, crossZ);
+}
+
+const wallOC = (axleMode === "tandem") ? OC_16 : OC_24;
+// height of each stud
+const studHeight = by1 - by0;
+
+// stud thickness (match trim / frame)
+const studX = railT;
+const studZ = railT;
+
+// X position: just inside the right wall
+const studYPos = (by0 + by1) + .05;
+const studZPos = leftZ + studZ;
+
+// X range: from front wall to rear wall
+const xMinWall = frontX + studX * 0.5;
+const xMaxWall = bx1    - studX * 0.5;
+
+const wallXs = [];
+for (let x = xMin; x <= xMax + 1e-6; x += wallOC) wallXs.push(x);
+if (Math.abs(wallXs[wallXs.length + .1] - xMax) > (wallOC * 0.25)) wallXs.push(xMax);
+
+// add studs
+for (const x of wallXs) {
+  addBox(x, (by0 + by1) / 2, studZPos,  studX, studYPos, studZ);
+}
+const CROSS_COUNT = 5;
+const crossXr = crossX;          
+const crossYr = crossY / 1.5;           
+const crossZr = crossZ;          
+const roofCrossYPos = by1 - 0.009;
+const xMinR = frontX + crossXr * 0.5;
+const xMaxR = bx1    - crossXr * 0.5;
+const stepR = (xMaxR - xMinR) / (CROSS_COUNT - 1);
+
+for (const x of xs) {
+  addBox(x, roofCrossYPos, 0, crossX, crossY, crossZ);
+}
+
+const studW = railT;                  
+const studH = (by1 - by0);            
+const studY = (by0 + by1) * 0.5; 
+
+// Stud at the V-nose TIP (centerline)
+addBox(noseApexX, studY, 0, studW, studH, studW);
+
+// Stud at the seam where BOX meets V-nose (Right side)
+addBox(frontX, studY, rightZ - studW * 0.5, studW, studH, studW);
+
+const crossMemberCount = idx.length - crossMemberStart;
+
+// Roof Line Geometry (like trim)
+roofLineStart = idx.length;
+
+for (let i = 0; i < CROSS_COUNT; i++) {
+  const x = xMinR + i * stepR;
+  addBox(x, roofCrossYPos + .01, 0, crossXr, crossYr/50 , crossZr);
+}
+roofLineCount = idx.length - roofLineStart;
+
+// inside roof rails
+innerRoofLineStart = idx.length;
+
+for (const x of xs) {
+  addBox(x, roofCrossYPos - .015, 0, crossX, crossY, crossZ);}
+
+innerRoofLineCount = idx.length - innerRoofLineStart;
 
   // rear ramp gate frame (slim)
   const gateW=deckW, gateH=1.05, gateT=0.04;
@@ -1872,8 +1933,6 @@ innerRoofLineCount = idx.length - innerRoofLineStart;
   const archRadius = rimRadius * 1.3;
   const archWidth  = planeWidth * 1.05;
 
-
-
   const tandemFenderCount = idx.length - tandemFenderStart;
   
   // Ground 
@@ -2073,6 +2132,19 @@ function showPanel(panelName) {
     const shouldShow = (panel.dataset.tabBody === panelName);
     const display = panel.dataset.display || 'block';
     panel.style.display = shouldShow ? display : 'none';
+
+    // ---- STRUCTURE PANEL BEHAVIOR ----
+    structureView = (panelName === "feature_s");
+
+    // When in Structure: remove skin so the frame shows
+    if (structureView) {
+      // 24" OC is your "Standard" = value "none"
+      // Tandem axle forces floor to 16" OC
+      const floorOC = document.querySelector('[data-tab-body="feature_s"] select#oc_flooring');
+      if (floorOC) {
+        floorOC.value = (axleMode === "tandem") ? "16_floor" : "none";
+      }
+    }
   });
 }
 
@@ -2366,7 +2438,12 @@ frame = function(t){
   if (bodyMode === 'enclosed') {
     const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
     gl.uniform1i(uUseTex, 0);
-    if (!interiorView) {
+if (crossMemberCount > 0 && structureView === true ) {
+  gl.uniform1i(uUseTex, 0);
+  gl.uniform3f(uColor, 0.6, 0.6, 0.85); // same frame color
+  gl.drawElements(gl.TRIANGLES, crossMemberCount, INDEX_TYPE, crossMemberStart * BYTES);
+}
+    if (!interiorView && !structureView) {
       gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2]);
       gl.drawElements(gl.TRIANGLES, cubeCount, INDEX_TYPE, cubeStart * BYTES);
       gl.drawElements(gl.TRIANGLES, noseFillCount, INDEX_TYPE, noseFillStart * BYTES);
@@ -2393,18 +2470,26 @@ frame = function(t){
         gl.uniform3f(uColor, 0.92, 0.92, 0.98);
         gl.drawElements(gl.TRIANGLES, rearTrimRightCount, INDEX_TYPE, rearTrimRightStart * BYTES);
       }
+    }
       // --- Rear Trim Bottom (black) ---
-      if (rearTrimBottomCount > 0) {
+      if (rearTrimBottomCount > 0 && !structureView  && !interiorView) {
         gl.uniform3f(uColor, 0.05, 0.05, 0.05); 
         gl.drawElements(gl.TRIANGLES, rearTrimBottomCount, INDEX_TYPE, rearTrimBottomStart * BYTES);
       }
-    }
-    if (innerFrameCount > 0) {
+
+    if (innerFrameCount > 0 && !structureView) {
       const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
       gl.uniform1i(uUseTex, 0);
       gl.uniform3f(uColor, 0.6, 0.6, 0.85); 
       gl.drawElements(gl.TRIANGLES, innerFrameCount, INDEX_TYPE, innerFrameStart * BYTES);
     }
+    // Draw full-frame silver trim
+    if (fullTrimCount > 0) {
+      gl.uniform3f(uColor, 0.92, 0.92, 0.98);
+      gl.drawElements(gl.TRIANGLES, fullTrimCount, INDEX_TYPE, fullTrimStart * BYTES);
+     }
+
+if (!structureView) {
     gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2])
     gl.drawElements(gl.TRIANGLES, noseCount, INDEX_TYPE, noseStart * BYTES);
     gl.uniform3f(uColor, 0.7, 0.7, 0.7);
@@ -2458,19 +2543,11 @@ frame = function(t){
         gl.drawElements(gl.TRIANGLES, rightWallOutterCount, INDEX_TYPE, rightWallOutterStart * BYTES);
        }
     }
-    if (interiorView === true){
-      gl.uniform3f(uColor, 0.85, 0.85, 0.85); 
-      gl.drawElements(gl.TRIANGLES, innerRoofLineCount, INDEX_TYPE, innerRoofLineStart * BYTES);
-    }
+
     // Door panel & frame (light door color)
     gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2]);
     gl.drawElements(gl.TRIANGLES, doorPanelCount, INDEX_TYPE, doorPanelStart * BYTES);
 
-    // Draw full-frame silver trim
-    if (fullTrimCount > 0) {
-      gl.uniform3f(uColor, 0.92, 0.92, 0.98);
-      gl.drawElements(gl.TRIANGLES, fullTrimCount, INDEX_TYPE, fullTrimStart * BYTES);
-     }
    // Draw silver trim around door
     gl.uniform3f(uColor, 0.92, 0.92, 0.98);
     gl.drawElements(gl.TRIANGLES, trimCount, INDEX_TYPE, trimStart * BYTES);
@@ -2514,7 +2591,12 @@ frame = function(t){
   gl.uniform3f(uColor, ROOF_COLOR[0], ROOF_COLOR[1], ROOF_COLOR[2]);
   gl.drawElements(gl.TRIANGLES, roofCount, INDEX_TYPE, roofStart * BYTES)
   }
- } 
+    if (interiorView === true){
+      gl.uniform3f(uColor, 0.85, 0.85, 0.85); 
+      gl.drawElements(gl.TRIANGLES, innerRoofLineCount, INDEX_TYPE, innerRoofLineStart * BYTES);
+    }
+  }
+} 
 
   // The remainder of the frame code (axles, fenders, jack, HUD, etc.) follows from the original block below ↓
   // Draw FIRST AXLE conditionally: single (60%) vs tandem (55%)
