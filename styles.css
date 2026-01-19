@@ -18,7 +18,7 @@ canvas:active { cursor: grabbing; }
 .scroll-arrow.right {right: 5px;}
 .scroll-arrow:hover {background: rgba(0,0,0,0.7);}
 .color-option {flex: 0 0 calc((100% - (4 * .75rem)) / 5); max-width: none; opacity: 0; transform: translateX(24px); transition: opacity 0.25s ease-out, transform 0.25s ease-out;
-               text-align:left; border-radius:.6rem; border:2px solid #ff6a00; padding:.4rem; background:#ffffff; cursor:pointer; display:flex; flex-direction:column; gap:.4rem;}
+               text-align:left; padding:.4rem; background:#ffffff; cursor:pointer; display:flex; flex-direction:column; gap:.4rem;}
 .color-option.from-left {transform: translateX(-24px);}
 .color-option.from-right {transform: translateX(24px);}
 .color-option.in-view {opacity: 1; transform: translateX(0);}
@@ -34,6 +34,9 @@ canvas:active { cursor: grabbing; }
 .config-panel {display: flex; flex-direction: column;}
 .config-panel-body {flex: 1; overflow: auto;}
 .axle-warning {margin-top: 8px; font-size: 1.9rem; color: #b45309; background: #fff7ed; border: 1px solid #fed7aa; padding: 6px 10px; border-radius: 6px;}
-.feature_s {display: flex; flex-direction: column; flex-wrap: wrap; max-height: 115px; align-content: flex-start; overflow: visible; column-gap: 16px;}
+.feature_oc {display: flex; flex-direction: column; flex-wrap: wrap; max-height: 115px; align-content: flex-start; overflow: visible; column-gap: 16px;}
+.feature_ad {display: flex; flex-direction: column; flex-wrap: wrap; max-height: 115px; align-content: flex-start; overflow: visible; column-gap: 16px;}
 .feature_i {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
 .feature_e {display: flex; gap: 8px; flex-direction: column; flex-wrap: wrap; max-height: 175px; overflow: auto;}
+.option-card.color-option {border: 2px solid #d0d4e0 !important; box-shadow: none !important; border-radius: 0.6rem;}
+.option-card.color-option.is-selected {border-color: #ff6a00 !important; border-radius: 0.6rem;}
