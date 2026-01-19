@@ -16,7 +16,7 @@
 			<button id="btnReset" class="btn" title="Reset view">Reset</button>
             <!-- Buttons for debug -->
             <button id="btnAxle" class="btn" title="Toggle axles" hidden>Single Axle</button>
-            <!-- button class="btn" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">Toggle Roof Lines</button-->
+            <button class="btn" id="btnRoofLines" title="Toggle Roof Lines" onclick="showRoofLines = !showRoofLines">Toggle Roof Lines</button>
             <button id="btnInterior" class="btn" title="Toggle interior view">Interior View</button>
 		</header>
 		<main class="main-pane" style="display:flex; flex-direction:column; align-items:center; padding:1rem 0; overflow:auto;">
@@ -86,9 +86,9 @@
       					<button class="scroll-arrow right" data-scroll="right">&#10095;</button>
 	    			</div>
     			<!-- Feature panels -->
-			<div class="config-panel-body" data-tab-body="feature_s" style="display:none; color: black;">
+			<div class="config-panel-body" data-tab-body="feature_oc" style="display:none; color: black;">
       				<h1>Structure Features</h1>
-      				<div class="feature_s">
+      				<div class="feature_oc" style="display: flex; flex-direction: column; flex-wrap: wrap; max-height: 115px; align-content: flex-start; overflow: visible; column-gap: 16px;">
 					<div>
 						<label style="font-size: 2rem;">Floor OC</label><br>
 						<select id="oc_floor" name="floor_oc" style="font-size: 2rem; color: white; background-color: black;">
@@ -115,6 +115,24 @@
 					</div>
       				</div>
     			</div>
+			<div class="config-panel-body" data-tab-body="feature_ad" style="display:none; color: black;">
+      				<h1>Structure Features</h1>
+      				<div class="feature_ad">
+					<div>
+						<label style="font-size: 2rem;">Additional Height</label><br>
+						<select id="add_height" name="add_height" style="font-size: 2rem; color: white; background-color: black;">
+    							<option value="none">Standard</option>
+							<option value="6">6"</option>
+							<option value="12">12"</option>
+							<option value="18">18"</option>
+							<option value="24">24"</option>
+							<option value="30">30"</option>
+							<option value="36">36"</option>
+							<option value="42">42"</option>
+						</select>
+					</div>
+				</div>
+			</div>
     			<div class="config-panel-body" data-tab-body="feature_e" style="display:none; color: black;">
       				<h1>Exterior Features</h1>
       				<div class="feature_e">
