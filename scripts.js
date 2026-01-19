@@ -297,6 +297,24 @@ const LENGTH_TO_WIDTHS = {
 const lengthSelect = document.getElementById("length-options");
 const widthSelect  = document.getElementById("width-options");
 
+const floorOCSelect = document.getElementById("oc_floor");
+
+let __uiInit = true; // prevents reload loops during startup
+
+if (floorOCSelect) {
+  // restore last choice (if any)
+  const saved = localStorage.getItem("oc_floor") || "";
+  if (saved) floorOCSelect.value = saved;
+
+floorOCSelect.addEventListener("change", () => {
+  localStorage.setItem("oc_floor", floorOCSelect.value);
+  if (!__uiInit) rebuildStructureBuffers();
+});
+
+}
+
+__uiInit = false;
+
 // Cache the original width <option> list so we can rebuild from it
 const ALL_WIDTH_OPTIONS = Array.from(widthSelect.options).map(o => ({
   value: o.value,          // "72"
@@ -337,12 +355,95 @@ applyWidthFilterForLength();
 
 
   // Geometry builders for all shapes for the trailers
-  const pos=[], nor=[], idx=[];
+  let pos=[], nor=[], idx=[];
   let roofLineStart = 0;
   let roofLineCount = 0;
   let innerRoofLineStart = 0;
   let innerRoofLineCount = 0;
-  
+
+function buildStructureGeometry() {
+  // reset structure arrays
+  sPos = [];
+  sNor = [];
+  sIdx = [];
+
+  // temporarily swap globals so your existing addBox()/pushQuad() fill sPos/sNor/sIdx
+  const _pos = pos, _nor = nor, _idx = idx;
+  pos = sPos; nor = sNor; idx = sIdx;
+
+  // ----------------------------
+  // BUILD YOUR STRUCTURE HERE
+  // ----------------------------
+
+  // read OC dropdown
+  const foc = (document.getElementById("oc_floor")?.value || "24_foc");
+  const OC_24 = 0.6096;
+  const OC_16 = 0.4064;
+  const OC_12 = 0.3048;
+
+  const crossOC =
+    (foc === "16_foc") ? OC_16 :
+    (foc === "12_foc") ? OC_12 :
+    OC_24;
+
+  // example: floor crossmembers using crossOC (use your existing variables)
+  // NOTE: use your *current working* crossmember logic here
+  // (frontX, bx1, by0, deckW, railT, etc.)
+  const crossX = railT;
+  const crossY = railT;
+  const crossZ = deckW;
+  const crossYPos = by0 - 0.009;
+
+  const xMin = frontX + crossX * 0.5;
+  const xMax = bx1    - crossX * 0.5;
+
+  for (let x = xMin; x <= xMax + 1e-6; x += crossOC) {
+    addBox(x, crossYPos, 0, crossX, crossY, crossZ);
+  }
+  // force one at rear
+  if (Math.abs((xMax - xMin) % crossOC) > crossOC * 0.25) {
+    addBox(xMax, crossYPos, 0, crossX, crossY, crossZ);
+  }
+
+  // restore globals
+  pos = _pos; nor = _nor; idx = _idx;
+}
+  function rebuildStructureBuffers() {
+  buildStructureGeometry();
+
+  // build typed arrays
+  const P = new Float32Array(sPos);
+  const N = new Float32Array(sNor);
+
+  // pick index size
+  let maxIndex = 0;
+  for (let i = 0; i < sIdx.length; i++) if (sIdx[i] > maxIndex) maxIndex = sIdx[i];
+
+  const isWebGL2 = (typeof WebGL2RenderingContext !== "undefined") && (gl instanceof WebGL2RenderingContext);
+  const extUint  = isWebGL2 ? true : !!gl.getExtension("OES_element_index_uint");
+
+  let I;
+  if (maxIndex > 65535 && extUint) {
+    I = new Uint32Array(sIdx);
+    sIndexType = gl.UNSIGNED_INT;
+  } else {
+    I = new Uint16Array(sIdx);
+    sIndexType = gl.UNSIGNED_SHORT;
+  }
+
+  // upload (DYNAMIC_DRAW because it changes)
+  gl.bindBuffer(gl.ARRAY_BUFFER, sPosB);
+  gl.bufferData(gl.ARRAY_BUFFER, P, gl.DYNAMIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, sNorB);
+  gl.bufferData(gl.ARRAY_BUFFER, N, gl.DYNAMIC_DRAW);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sIdxB);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, I, gl.DYNAMIC_DRAW);
+
+  sCount = I.length;
+}
+
   function addRectBeam(A, B, thicknessZ, heightY){
     const ax=A[0], ay=A[1], az=A[2];
     const bx=B[0], by=B[1], bz=B[2];
@@ -1477,129 +1578,202 @@ function addBodyTrim() {
   const postN=5; for(let i=0;i<postN;i++){ const x=-deckL/2 + i*(deckL/(postN-1)); addBox(x, railH/2, -deckW/2, railT, railH, railT); addBox(x, railH/2, deckW/2, railT, railH, railT); }
 
 
-// --- Frame crossmembers (floor OC) ---
-// 24" OC standard, tandem axle uses 16" OC
-const crossMemberStart = idx.length;
-const OC_24 = 0.6096; // meters
-const OC_16 = 0.4064; // meters
-let crossOC = 0
 
-if (axleMode === 'single') {
-   crossOC = OC_24
-   console.log("axleMode:", axleMode, "crossOC:", crossOC);
-   }else{
-   crossOC = OC_16
-   console.log("axleMode:", axleMode, "crossOC:", crossOC);
-   }
+// --- Frame crossmembers (floor OC) ---
+const OC_24 = 0.6096; // meters (24")
+const OC_16 = 0.4064; // meters (16")
+const OC_12 = 0.3048; // meters (12")
 
 // beam size (tweak to taste)
-const crossX = railT;    
-const crossY = railT;     
-const crossZ =  deckW;    
+const crossX = railT;
+const crossY = railT;
+const crossZ = deckW;
+
+const xMinR = frontX + crossX * 0.5;
+const xMaxR = bx1    - crossX * 0.5;
+const stepR = (xMaxR - xMinR) / (5 - 1);    
+const crossYr = crossY / 1.5;                    
+const roofCrossYPos = by1 - 0.009;  
 
 // place them slightly under deck surface so they look like frame members
-const crossYPos =  by0 - 0.009; 
+const crossYPos = by0 - 0.009;
 
 // span along X (front wall to rear wall)
 const xMin = frontX + crossX * 0.5;
 const xMax = bx1    - crossX * 0.5;
 
-// place members every OC, and FORCE one at the rear
-const xs = [];
-for (let x = xMin; x <= xMax + 1e-6; x += crossOC) xs.push(x);
-if (Math.abs(xs[xs.length - 1] - xMax) > (crossOC * 0.25)) xs.push(xMax);
-
-for (const x of xs) {
-  addBox(x, crossYPos, 0, crossX, crossY, crossZ);
+function makeCrossXs(oc) {
+  const xs = [];
+  for (let x = xMin; x <= xMax + 1e-6; x += oc) xs.push(x);
+  if (Math.abs(xs[xs.length - 1] - xMax) > (oc * 0.25)) xs.push(xMax);
+  return xs;
 }
 
-const wallOC = (axleMode === "tandem") ? OC_16 : OC_24;
-// height of each stud
-const studHeight = by1 - by0;
+function buildFloorCrossmembers(oc) {
+  const start = idx.length;
+  const xs = makeCrossXs(oc);
+  for (const x of xs) addBox(x, crossYPos, 0, crossX, crossY, crossZ);
+  return { start, count: idx.length - start, xs };
+}
 
-// stud thickness (match trim / frame)
+// Build all 3 once (viewer will draw the selected one)
+const floorCross24 = buildFloorCrossmembers(OC_24);
+const floorCross16 = buildFloorCrossmembers(OC_16);
+const floorCross12 = buildFloorCrossmembers(OC_12);
+
+// Keep a default xs for any *other* geometry below that still uses `xs`
+const defaultFloorOC = (axleMode === "tandem") ? OC_16 : OC_24;
+const xs = makeCrossXs(defaultFloorOC);
+
+// stud thickness
 const studX = railT;
 const studZ = railT;
-
-// X position: just inside the right wall
-const studYPos = (by0 + by1) + .05;
-const studZPos = leftZ + studZ;
 
 // X range: from front wall to rear wall
 const xMinWall = frontX + studX * 0.5;
 const xMaxWall = bx1    - studX * 0.5;
 
-const wallXs = [];
-for (let x = xMin; x <= xMax + 1e-6; x += wallOC) wallXs.push(x);
-if (Math.abs(wallXs[wallXs.length + .1] - xMax) > (wallOC * 0.25)) wallXs.push(xMax);
+// Y placement
+const studH = (by1 - by0);
+const studY = (by0 + by1) * 0.5;
 
-// add studs
-for (const x of wallXs) {
-  addBox(x, (by0 + by1) / 2, studZPos,  studX, studYPos, studZ);
-}
-const CROSS_COUNT = 5;
-const crossXr = crossX;          
-const crossYr = crossY / 1.5;           
-const crossZr = crossZ;          
-const roofCrossYPos = by1 - 0.009;
-const xMinR = frontX + crossXr * 0.5;
-const xMaxR = bx1    - crossXr * 0.5;
-const stepR = (xMaxR - xMinR) / (CROSS_COUNT - 1);
+// Z placement (both walls, just inside)
+const zLeft  = leftZ  + studZ;
+const zRight = rightZ - studZ;
 
-for (const x of xs) {
-  addBox(x, roofCrossYPos, 0, crossX, crossY, crossZ);
+function makeStudXs(oc) {
+  const xs = [];
+  for (let x = xMinWall; x <= xMaxWall + 1e-6; x += oc) xs.push(x);
+  if (Math.abs(xs[xs.length - 1] - xMaxWall) > (oc * 0.25)) xs.push(xMaxWall);
+  return xs;
 }
 
-const studW = railT;                  
-const studH = (by1 - by0);            
-const studY = (by0 + by1) * 0.5; 
+function buildWallStuds(oc) {
+  const start = idx.length;
+  const xs = makeStudXs(oc);
 
-// Stud at the V-nose TIP (centerline)
-addBox(noseApexX, studY, 0, studW, studH, studW);
+  for (const x of xs) {
+    addBox(x, studY, zLeft,  studX, studH, studZ);
+  }
 
-// Stud at the seam where BOX meets V-nose (Right side)
-addBox(frontX, studY, rightZ - studW * 0.5, studW, studH, studW);
+  return { start, count: idx.length - start };
+}
 
-const crossMemberCount = idx.length - crossMemberStart;
+// Build all 3 once
+const wallStud24 = buildWallStuds(OC_24);
+const wallStud16 = buildWallStuds(OC_16);
+const wallStud12 = buildWallStuds(OC_12);
+
+// --- V-nose studs (fixed spacing; does NOT change with dropdowns) ---
+const vnoseStudStart = idx.length;
+
+const vStudX = railT;        // thickness in X
+const vStudZ = railT;        // thickness in Z
+const vStudH = (by1 - by0);
+const vStudY = (by0 + by1) * 0.5;
+
+// choose a fixed spacing: 24" OC (meters)
+const VNoseOC = 0.6096;
+
+// length along the V-nose edge (in XZ)
+const dxN = (noseApexX - frontX);
+const dzN = (cubeW * 0.5);
+const noseEdgeLen = Math.hypot(dxN, dzN) || 1;
+
+// how many studs along the nose face
+const vnCount = Math.max(2, Math.floor(noseEdgeLen / VNoseOC) + 1);
+
+// helper: point on the v-nose face at fraction u (0=at front wall, 1=at apex)
+function vnoseXZ(isLeft, u) {
+  const x = frontX + dxN * u;
+  const zEdge = isLeft ? -cubeW * 0.5 : cubeW * 0.5;
+  const z = zEdge * (1.0 - u);
+  return [x, z];
+}
+
+// build studs on both faces
+for (let i = 0; i < vnCount; i++) {
+  const u = (vnCount === 1) ? 0 : i / (vnCount - 1);
+
+  // left face
+  {
+    const [x, z] = vnoseXZ(true, u);
+    addBox(x, vStudY, z, vStudX, vStudH, vStudZ);
+  }
+
+  // right face
+  {
+    const [x, z] = vnoseXZ(false, u);
+    addBox(x, vStudY, z, vStudX, vStudH, vStudZ);
+  }
+}
+
+const vnoseStudCount = idx.length - vnoseStudStart;
+
 
 // Roof Line Geometry (like trim)
 roofLineStart = idx.length;
 
-for (let i = 0; i < CROSS_COUNT; i++) {
+for (let i = 0; i < 5; i++) {
   const x = xMinR + i * stepR;
-  addBox(x, roofCrossYPos + .01, 0, crossXr, crossYr/50 , crossZr);
+  addBox(x, roofCrossYPos + .01, 0, crossX, crossYr/50 , crossZ);
 }
 roofLineCount = idx.length - roofLineStart;
 
-// inside roof rails
-innerRoofLineStart = idx.length;
+// --- Roof crossmembers (roof OC) ---
+const roofCrossYPosIn = by1 - 0.015;     // inside roof member height
+const roofCrossZSpan  = crossZ;          // full width
+const roofCrossX      = crossX;          // thickness in X
+const roofCrossY      = crossY;          // thickness in Y
 
-for (const x of xs) {
-  addBox(x, roofCrossYPos - .015, 0, crossX, crossY, crossZ);}
+function makeRoofXs(oc) {
+  const xs = [];
+  for (let x = xMin; x <= xMax + 1e-6; x += oc) xs.push(x);
+  if (Math.abs(xs[xs.length - 1] - xMax) > (oc * 0.25)) xs.push(xMax);
+  return xs;
+}
 
-innerRoofLineCount = idx.length - innerRoofLineStart;
+function buildRoofCrossmembers(oc) {
+  const start = idx.length;
+  const xs = makeRoofXs(oc);
+  for (const x of xs) addBox(x, roofCrossYPosIn - .005, 0, roofCrossX, roofCrossY, roofCrossZSpan);
+  return { start, count: idx.length - start };
+}
 
-  // rear ramp gate frame (slim)
-  const gateW=deckW, gateH=1.05, gateT=0.04;
-  const gateX = deckL/2 - gateT/2; // side plane x
-  // side frame rails down to bumper (both sides)
-  addBox(deckL/2, gateH/2, -gateW/2 + gateT/2, gateT*0.5, gateH, gateT);
-  addBox(deckL/2, gateH/2,  gateW/2 - gateT/2, gateT*0.5, gateH, gateT);
-  // Top rail: straight bar connecting side rails
-  const gateYTop = gateH - gateT/2; // renamed from yTop to avoid collisions
-  addBox(deckL/2, gateYTop, 0, gateT*0.5, gateT, gateW);
-  // bottom bar
-  addBox(deckL/2, gateT/2, 0, gateT*0.5, gateT, gateW);
-  // inner vertical ribs (5 slimmer ribs like reference)
-  for(let i=-2;i<=2;i++){ const z = i*(gateW/5); addBox(deckL/2, gateH/2, z, gateT*0.35, gateH-gateT*2, gateT*0.35); }
+// Build all 3 once (viewer will draw selected one)
+const roofCross24 = buildRoofCrossmembers(OC_24);
+const roofCross16 = buildRoofCrossmembers(OC_16);
+const roofCross12 = buildRoofCrossmembers(OC_12);
 
-  function normalFrom3(p0, p1, p2){
-    const ux=p1[0]-p0[0], uy=p1[1]-p0[1], uz=p1[2]-p0[2];
-    const vx=p2[0]-p0[0], vy=p2[1]-p0[1], vz=p2[2]-p0[2];
-    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
-    const nl=Math.hypot(nx,ny,nz)||1;
-    return [nx/nl, ny/nl, nz/nl];
+function updateFloorOcForAxle() {
+  const sel = document.getElementById("oc_floor");
+  if (!sel) return;
+
+  const standardOpt = sel.querySelector('option[value="24_foc"]'); // "Standard"
+
+  if (axleMode === "tandem") {
+    // hide/disable Standard
+    if (standardOpt) {
+      standardOpt.disabled = true;
+      standardOpt.hidden = true; // supported in modern browsers
+    }
+
+    // force 16" OC
+    sel.value = "16_foc";
+  } else {
+    // restore Standard
+    if (standardOpt) {
+      standardOpt.disabled = false;
+      standardOpt.hidden = false;
+    }
+
+    // if value somehow got unset, default back to Standard
+    if (!sel.value) sel.value = "24_foc";
   }
+
+  // If you have logic listening to changes, this will re-run it
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+}
 
   // wheel + axle + tires
   // In single mode, axle at 60%. In tandem mode, first axle at 55% and second at 75%.  
@@ -1966,11 +2140,8 @@ innerRoofLineCount = idx.length - innerRoofLineStart;
   } else {
     // 16-bit is enough (or we can’t use 32-bit)
     I = new Uint16Array(idx);
+    INDEX_TYPE = (I instanceof Uint32Array) ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
   }
-  
-  const ibo = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, I, gl.STATIC_DRAW);
 
   // Ranges for selective drawing (so only the jack foot is silver)
   const singleFenderEnd = singleFenderStart + singleFenderCount;
@@ -1990,12 +2161,25 @@ innerRoofLineCount = idx.length - innerRoofLineStart;
   const posB=buf(gl.ARRAY_BUFFER,P,gl.STATIC_DRAW);
   const norB=buf(gl.ARRAY_BUFFER,N,gl.STATIC_DRAW);
   const idxB=buf(gl.ELEMENT_ARRAY_BUFFER,I,gl.STATIC_DRAW);
+// --- Structure (OC) geometry lives in its own buffers so it can be rebuilt live ---
+let sPos = [];
+let sNor = [];
+let sIdx = [];
+
+let sPosB = gl.createBuffer();
+let sNorB = gl.createBuffer();
+let sIdxB = gl.createBuffer();
+
+let sIndexType = gl.UNSIGNED_SHORT;
+let sCount = 0;
+
 
   const locPos=gl.getAttribLocation(program,'aPosition');
   const locNor=gl.getAttribLocation(program,'aNormal');
   gl.bindBuffer(gl.ARRAY_BUFFER,posB); gl.vertexAttribPointer(locPos,3,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(locPos);
   gl.bindBuffer(gl.ARRAY_BUFFER,norB); gl.vertexAttribPointer(locNor,3,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(locNor);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idxB);
+  rebuildStructureBuffers();
 
   const uProjection=gl.getUniformLocation(program,'uProjection');
 
@@ -2030,7 +2214,6 @@ if (DEBUG) {
   console.assert(I.length > 0 && P.length > 0, 'Geometry buffers must be non-empty');
   console.assert(deckIndexCount > 0, 'Deck planks exist');
   console.assert(seamIndexCount >= (plankCount-1)*6, 'Seam quads should exist');
-  console.assert(typeof gateYTop === 'number' && !isNaN(gateYTop), 'gateYTop defined');
   console.assert(typeof fenderYTop === 'number' && !isNaN(fenderYTop), 'fenderYTop defined');
   console.assert(singleFenderCount >= 0 && tandemFenderCount >= 0, 'Fender index ranges valid');
   console.assert(secondAxleCount >= 0, 'Second axle range valid');
@@ -2087,6 +2270,7 @@ if (DEBUG) {
     });
 
     console.log('Axle mode set by cards:', axleMode);
+    updateFloorOcForAxle();
   }
 
     // click behavior for cards
@@ -2134,13 +2318,13 @@ function showPanel(panelName) {
     panel.style.display = shouldShow ? display : 'none';
 
     // ---- STRUCTURE PANEL BEHAVIOR ----
-    structureView = (panelName === "feature_s");
+    structureView = (panelName === "feature_oc");
 
     // When in Structure: remove skin so the frame shows
     if (structureView) {
       // 24" OC is your "Standard" = value "none"
       // Tandem axle forces floor to 16" OC
-      const floorOC = document.querySelector('[data-tab-body="feature_s"] select#oc_flooring');
+      const floorOC = document.querySelector('[data-tab-body="feature_oc"] select#oc_flooring');
       if (floorOC) {
         floorOC.value = (axleMode === "tandem") ? "16_floor" : "none";
       }
@@ -2174,13 +2358,20 @@ document.getElementById("next").addEventListener("click", (e) => {
   }
 
   if (currentPanel === "color") {
-    currentPanel = "feature_s";
-    showPanel("feature_s");
+    currentPanel = "feature_oc";
+    showPanel("feature_oc");
     //if (typeof revealColorOptions === "function") revealColorOptions();
     return;
   }
 
-  if (currentPanel === "feature_s") {
+  if (currentPanel === "feature_oc") {
+    currentPanel = "feature_ad";
+    showPanel("feature_ad");
+    //if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "feature_ad") {
     currentPanel = "feature_e";
     showPanel("feature_e");
     //if (typeof revealColorOptions === "function") revealColorOptions();
@@ -2205,13 +2396,20 @@ document.getElementById("back").addEventListener("click", (e) => {
   }
 
   if (currentPanel === "feature_e") {
-    currentPanel = "feature_s";
-    showPanel("feature_s");
+    currentPanel = "feature_ad";
+    showPanel("feature_ad");
     if (typeof revealColorOptions === "function") revealColorOptions();
     return;
   }
 
-  if (currentPanel === "feature_s") {
+  if (currentPanel === "feature_ad") {
+    currentPanel = "feature_oc";
+    showPanel("feature_oc");
+    if (typeof revealColorOptions === "function") revealColorOptions();
+    return;
+  }
+
+  if (currentPanel === "feature_oc") {
     currentPanel = "color";
     showPanel("color");
     if (typeof revealColorOptions === "function") revealColorOptions();
@@ -2239,45 +2437,52 @@ document.getElementById("back").addEventListener("click", (e) => {
 
 document.getElementById("restart").addEventListener("click", (e) => {
   e.preventDefault();
+
   currentPanel = "length";
   showPanel("length");
+
   lengthSelect.value = "10";
   applyWidthFilterForLength();
-  applyAxleRulesForLength();
-  // Reset color to Silver
-  const silverBtn = document.querySelector('.color-option[data-color="silver"]');
-  if (silverBtn) {
-    silverBtn.click();
+
+  axleMode = "single";
+
+  const sel = document.getElementById("oc_floor");
+  const standardOpt = sel?.querySelector('option[value="24_foc"]');
+  if (standardOpt) {
+    standardOpt.disabled = false;
+    standardOpt.hidden = false;
   }
+
+  if (sel) sel.value = "24_foc";
+
+  updateFloorOcForAxle();
+  applyAxleRulesForLength();
+  setAxleMode();
+
+  const silverBtn = document.querySelector('.color-option[data-color="silver"]');
+  if (silverBtn) silverBtn.click();
 });
 
+
 // --- COLOR BUTTON LISTENER ---
-document.querySelectorAll('.color-option').forEach(btn => {
-  btn.addEventListener('click', () => {
+document.querySelectorAll(".color-option").forEach(btn => {
+  btn.addEventListener("click", () => {
 
-    // UI highlight
-    document.querySelectorAll('.color-option')
-      .forEach(b => b.classList.remove('is-selected'));
-    btn.classList.add('is-selected');
+    // remove highlight from all colors
+    document.querySelectorAll(".color-option")
+      .forEach(b => b.classList.remove("is-selected"));
 
-    // which color was clicked?
+    // highlight the clicked one
+    btn.classList.add("is-selected");
+
+    // existing color logic (keep yours)
     const key = btn.dataset.color;
-
-    // only recolor if we're viewing an enclosed trailer
-    if (bodyMode === 'enclosed' && COLOR_MAP[key]) {
-
+    if (COLOR_MAP[key]) {
       enclosedColor = COLOR_MAP[key];
-
-      // update the shader color immediately
-      gl.uniform3f(
-        uColor,
-        enclosedColor[0],
-        enclosedColor[1],
-        enclosedColor[2]
-      );
     }
   });
 });
+
 // ---- DEFAULT COLOR ----
 const defaultKey = "silver";
 const defaultBtn = document.querySelector(`.color-option[data-color="${defaultKey}"]`);
@@ -2424,6 +2629,8 @@ frame = function(t){
   gl.uniformMatrix4fv(uModel, false, M4.ident());
   gl.uniform3f(uColor, 0.22, 0.24, 0.26);
 
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxB);
+
   gl.drawElements(gl.TRIANGLES, groundCount, INDEX_TYPE, groundStart * BYTES);
 
   gl.disable(gl.CULL_FACE);  
@@ -2438,10 +2645,79 @@ frame = function(t){
   if (bodyMode === 'enclosed') {
     const BYTES = (INDEX_TYPE === gl.UNSIGNED_INT) ? 4 : 2;
     gl.uniform1i(uUseTex, 0);
-if (crossMemberCount > 0 && structureView === true ) {
+if (structureView && sCount > 0) {
   gl.uniform1i(uUseTex, 0);
-  gl.uniform3f(uColor, 0.6, 0.6, 0.85); // same frame color
-  gl.drawElements(gl.TRIANGLES, crossMemberCount, INDEX_TYPE, crossMemberStart * BYTES);
+  gl.uniform3f(uColor, 0.6, 0.6, 0.85); // your stud/frame color
+
+  // swap attribute buffers to structure buffers
+  gl.bindBuffer(gl.ARRAY_BUFFER, sPosB);
+  gl.vertexAttribPointer(locPos, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(locPos);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, sNorB);
+  gl.vertexAttribPointer(locNor, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(locNor);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sIdxB);
+
+  const BYTES = (sIndexType === gl.UNSIGNED_INT) ? 4 : 2;
+  gl.drawElements(gl.TRIANGLES, sCount, sIndexType, 0 * BYTES);
+
+  // IMPORTANT: switch buffers back to the main mesh buffers afterward
+  gl.bindBuffer(gl.ARRAY_BUFFER, posB);
+  gl.vertexAttribPointer(locPos, 3, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, norB);
+  gl.vertexAttribPointer(locNor, 3, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxB);
+}
+
+if (structureView === true) {
+  const v = document.getElementById("oc_floor")?.value || "24_foc";
+
+  const set =
+    (v === "12_foc") ? floorCross12 :
+    (v === "16_foc") ? floorCross16 :
+                       floorCross24;
+
+  if (set.count > 0) {
+    gl.uniform1i(uUseTex, 0);
+    gl.uniform3f(uColor, 0.6, 0.6, 0.85);
+    gl.drawElements(gl.TRIANGLES, set.count, INDEX_TYPE, set.start * BYTES);
+  }
+// --- Wall studs (wall OC) ---
+const wv = document.getElementById("oc_wall")?.value || "24_woc";
+const wset =
+  (wv === "12_woc") ? wallStud12 :
+  (wv === "16_woc") ? wallStud16 :
+                      wallStud24;
+
+if (wset.count > 0) {
+  gl.uniform1i(uUseTex, 0);
+  gl.uniform3f(uColor, 0.6, 0.6, 0.85);
+  gl.drawElements(gl.TRIANGLES, wset.count, INDEX_TYPE, wset.start * BYTES);
+}
+if (vnoseStudCount > 0) {
+  gl.uniform1i(uUseTex, 0);
+  gl.uniform3f(uColor, 0.6, 0.6, 0.85);
+  gl.drawElements(gl.TRIANGLES, vnoseStudCount, INDEX_TYPE, vnoseStudStart * BYTES);
+}
+}
+if (structureView || interiorView) {
+// --- Roof OC crossmembers ---
+const rv = document.getElementById("oc_roof")?.value || "24_roc";
+const rset =
+  (rv === "12_roc") ? roofCross12 :
+  (rv === "16_roc") ? roofCross16 :
+                      roofCross24;
+
+if (rset.count > 0) {
+  gl.uniform1i(uUseTex, 0);
+  gl.uniform3f(uColor, 0.6, 0.6, 0.85);
+  gl.drawElements(gl.TRIANGLES, rset.count, INDEX_TYPE, rset.start * BYTES);
+}
+
 }
     if (!interiorView && !structureView) {
       gl.uniform3f(uColor, enclosedColor[0], enclosedColor[1], enclosedColor[2]);
