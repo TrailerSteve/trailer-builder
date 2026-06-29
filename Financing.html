@@ -1,16 +1,206 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body>
-  <div>
-    <label><input type="checkbox" name="credit">Credit Based Financing</label>
-    <label><input type="checkbox" name="rent">Rent-To-Own</label>
-  </div>
-  <div>
-    
-  </div>
+<style>
+	html,
+	body {
+		height: 100%;
+		margin: 0;
+		font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	}
+	
+	button,
+	input,
+	select,
+	textarea {
+		font-family: inherit;
+	}
+	
+	#app {
+		position: fixed;
+		inset: 0;
+		display: grid;
+		grid-template-rows: auto 1fr;
+	}
+	
+	.back {
+		font-size: 1.5rem;
+		padding: .25rem .5rem;
+		border-radius: 999px;
+		max-width: 360px;
+		max-height: 360px;
+	}
+	
+	img {
+		display: block;
+		height: auto;
+	}
+	
+	.credit {
+		box-sizing: border-box;
+		text-align: left;
+		padding: .4rem;
+		background: #ffffff;
+		cursor: pointer;
+		display: block;
+	}
+	
+	.prime {
+		display: flex;
+		align-items: center;
+		width: 100%;
+	}
+	
+	.prime > div {
+		flex: 0 0 auto;
+	}
+	
+	.prime a.credit {
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+	}
+	
+	.prime img {
+		width: 100%;
+		max-width: 360px;
+		height: auto;
+		display: block;
+	}
+	
+	.rto-logos {
+		display: flex;
+		justify-content: left;
+		align-items: flex-start;
+		flex-wrap: wrap;
+		gap: 20px
+	}
+	
+	.rto-logos > div {
+		flex: 0 0 auto;
+	}
+	
+	.rto-logos a.rto {
+		display: flex;
+		justify-content: left;
+		align-items: flex-start;
+	}
+	
+	.rto-logos img {
+		width: 300px;
+		height: 320px;
+		display: block;
+	}
+	
+	@media (max-width: 700px) {
+		.rto-logos {
+			flex-direction: column;
+		}
+	}
+	
+	@media (max-width: 700px) {
+		.prime {
+			flex-direction: column;
+		}
+		.prime > div {
+			width: 100%;
+		}
+	}
+
+</style>
+<div id="financing-options">
+	<div>
+
+		<h1>Financing Options at Busenbark Trailers</h1>
+
+		<h3>Busenbark Trailers offers several financing options to fit your needs.
+			<br>If you&rsquo;re unsure which program is right for you, give us a call at 573-431-4444,
+			<br>and one of our financing specialists will be happy to guide you through the best option for your situation.
+			<br>
+			<br>We are also happy to work with your local bank or credit union if you prefer.
+			<br>In many cases, this can be a great way to secure the lowest possible interest rate.
+			<br>
+			<br>*Please note that trailers are typically classified as powersports equipment,
+			<br>similar to side-by-sides (SXS) and dirt bikes, which may affect interest rates.</h3>
+	</div>
+</div>
+<div class="credit">
+	<div id="credit">
+		<div>
+
+			<h1>Credit Base Financing</h1>
+
+			<h2>Prime Credit Options (Minimum Credit Score: 680)</h2>
+
+			<h3>Sheffield Financial and Synchrony Bank are our fastest and most convenient lending partners.
+				<br>Most customers can complete the application process in-store and receive approval the same day &mdash; often in 30 minutes or less.</h3>
+		</div>
+		<div class="prime">
+			<div>
+				<a class="credit" href="https://mail.synchronybank.com/pub/cc?_ri_=X0Gzc2X%3DBQjkPkSTSQGqhFJnALpPMzasGHmzazcXzbzbv5m92Bm8UFza3e21zdobzcW1k06D5Su9hlP0YzaVXtpKX%3DACRTDRCT&_ei_=ERVIlxWz0JQI8vhaR3xWyW0uUagczzdo0IMyCG7t4yG7Jsm6ojdanaqDftbUsq5-WAGDrwOcwixUCHdPjqWtsNoIpBwZMPmJv4USzd1gkN2mjKR3WoKabPj3I9Vsvp0jdaUVdyNA08DHA-nx0NZaNwunZ3_69yf33UAh6_tpNQrr44XpX2YSuTOVJaTUC8xWKwOTA8WuKWEp2nkF9zwCzGUBZXOfKU-96l2hWM.&_di_=9t9nfgck9co605qi6tunta3mcoeit51ajvss1jmjg19irrklm6u0" rel="noopener noreferrer" target="_blank"><img src="//cdnmedia.endeavorsuite.com/images/ThumbGenerator/Thumb.aspx?img=//cdnmedia.endeavorsuite.com/images/organizations/6161ec09-73ef-404a-8aee-25d2cb1b9601/synchrony.jpg&v=1771604813758&mw=400&mh=209&f=1?v=20260228202959" alt="Synchrony" class="fr-fil fr-dib"></a>
+			</div>
+			<div>
+				<a class="credit" href="https://prequalify.sheffieldfinancial.com/Apply/Dealer/7154?source=web" rel="noopener noreferrer" target="_blank"><img src="//cdnmedia.endeavorsuite.com/images/ThumbGenerator/Thumb.aspx?img=//cdnmedia.endeavorsuite.com/images/organizations/6161ec09-73ef-404a-8aee-25d2cb1b9601/sheffield.jpg&v=1771604813758&mw=400&mh=200&f=1?v=20260228202959" alt="Sheffield Financial" class="fr-fil fr-dib"></a>
+			</div>
+		</div>
+		<div>
+			<label>Key Features:
+				<br>&nbsp;* $0 down payment (with approved credit)
+				<br>&nbsp;* Interest rates typically range from 7.24%&ndash;15.99%, depending on creditworthiness and loan term
+				<br>&nbsp;* Loan terms from 24 to 84 months
+				<br>&nbsp;* No early payoff penalties
+				<br>
+				<br>&nbsp;Loan Amounts:
+				<br>&nbsp;* Sheffield Financial: $1,500&ndash;$25,000
+				<br>&nbsp;* Synchrony Bank: $3,000&ndash;$25,000
+				<br>&nbsp;* Synchrony can also finance used trailers (rates may be slightly higher)
+				<br>
+				<br>&nbsp;Sheffield also offers promotional options, including 90 days same-as-cash with payments (subject to approval).</label>
+		</div>
+		<div>
+
+			<h2>Expanded Credit Options (Minimum Credit Score: 570)</h2>
+
+			<h3>Rock Solid Funding is an excellent choice if your goal is the lowest possible monthly payment.</h3>
+		</div>
+		<div>
+			<a class="credit" href="https://www.rocksolidfunding.com/dealer-loan-application/?tfa_1171=1390&dealernumber=1390&tfa_1174=trailerchad@busenbarks.com&tfa_3386=trailerchad@busenbarks.com&tfa_1165=Yes&tfa_1168=Dealer&tfa_1172=Busenbark%20Trailers" rel="noopener noreferrer" target="_blank"><img src="//cdnmedia.endeavorsuite.com/images/ThumbGenerator/Thumb.aspx?img=//cdnmedia.endeavorsuite.com/images/organizations/6161ec09-73ef-404a-8aee-25d2cb1b9601/RockSolidFundingLogo_horz_BLKmainblue121.png&v=1772310328244&mw=400&mh=109&f=1?v=20260228202959" alt="Rock Solid Funding" class="fr-fil fr-dib"></a>
+		</div>
+		<div>
+			<label>Key Features:
+				<br>&nbsp;* Loan terms from 60 to 180 months
+				<br>&nbsp;* Financing available from $3,500&ndash;$75,000
+				<br>&nbsp;* 10% down payment required
+				<br>&nbsp;* Interest rates typically range from 10.95%&ndash;17.95%, depending on creditworthiness and loan term
+				<br>&nbsp;* Approval and funding typically within 2&ndash;5 business days
+				<br>&nbsp;(Livestock trailers may require additional time.)
+				<br>
+				<br>&nbsp;This option works especially well for larger equipment purchases or customers needing longer terms.&nbsp;</label>
+		</div>
+	</div>
+</div>
+<div id="rto">
+	<div class="rto">
+		<div>
+
+			<h2>Low or No Credit Options</h2>
+
+			<h3>Rent-to-Own is a popular alternative that can get you on the road in as little as 1&ndash;3 days</h3>
+
+			<h4>We partner with:</h4>
+		</div>
+		<div class="rto-logos">
+			<div>
+				<h1>No Credit Option<h1>
+				<label>Hopkins Management Group</label>
+				<a class="rto" href="https://rtostreamline.com/mobile/trailersrenttoown/defaultpa.aspx?dealer_id=53&location_id=430"><img src="//cdnmedia.endeavorsuite.com/images/ThumbGenerator/Thumb.aspx?img=//cdnmedia.endeavorsuite.com/images/organizations/6161ec09-73ef-404a-8aee-25d2cb1b9601/unnamed.jpg.png&v=1771604813758&mw=254&mh=300&f=1?v=20260228202959" alt="HMG" class="fr-fil fr-dib"></a>
+			</div>
+			<div>
+				<h1>Low Credit Option</h1>
+				<label>C3 Leasing</label>
+				<a class="rto" href="https://www.c3leasing.com/organic_init?dealer_id=001Uw00000EWPmUIAX"><img src="//cdnmedia.endeavorsuite.com/images/ThumbGenerator/Thumb.aspx?img=//cdnmedia.endeavorsuite.com/images/organizations/6161ec09-73ef-404a-8aee-25d2cb1b9601/C3.jpg&v=1772310328244&mw=240&mh=300&f=1?v=20260228202959" alt="C3" class="fr-fil fr-dib"></a>
+			</div>
+		</div>
+	</div>
+</div>
 </body>
 </html>
